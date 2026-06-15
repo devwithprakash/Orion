@@ -3,15 +3,9 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { Resend } from "resend";
-import { toast } from "sonner";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = "Orion <onboarding@resend.dev>";
-
-type ResetPasswordEmail = {
-  user: { email: string };
-  url: string;
-};
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -62,5 +56,11 @@ export const auth = betterAuth({
     },
   },
 
-  plugins: [nextCookies()],
+  // plugins: [nextCookies()],
 });
+
+export async function getSession(headers: Headers) {
+  return auth.api.getSession({
+    headers,
+  });
+}
