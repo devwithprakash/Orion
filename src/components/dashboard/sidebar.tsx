@@ -20,10 +20,12 @@ export default function Sidebar({
 }) {
   return (
     <>
-      <div className="h-16 px-5 flex items-center gap-2 border-b border-sidebar-border">
-        <OrionLogo className="size-7" />
-        <span className="font-semibold tracking-tight">Orion</span>
-      </div>
+      <Link href={"/"}>
+        <div className="h-16 px-5 flex items-center gap-2 border-b border-sidebar-border">
+          <OrionLogo className="size-7" />
+          <span className="font-semibold tracking-tight">Orion</span>
+        </div>
+      </Link>
 
       <div className="p-3">
         <button className="w-full flex items-center gap-2.5 px-3 h-9 rounded-lg bg-secondary border border-border text-muted-foreground text-sm hover:text-foreground transition-colors">

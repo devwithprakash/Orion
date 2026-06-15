@@ -1,12 +1,142 @@
-import { OrionLogo } from "@/components/landing/orion-logo";
-import Link from "next/link";
+"use client";
 
-export default function Login() {
+import { OrionLogo } from "@/components/landing/orion-logo";
+import { signInSchema, signUpSchema } from "@/lib/validators/auth-validation";
+import Link from "next/link";
+import { ChangeEvent, useState } from "react";
+import { toast } from "sonner";
+import { signIn, signUp } from "../../../../features/auth/actions/auth";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+
+type SignInPageProps = {
+  searchParams: Promise<{ callbackUrl?: string }>;
+};
+
+type FieldProps = {
+  label: string;
+  type: string;
+  placeholder: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  rightLabel?: React.ReactNode;
+  error?: string;
+};
+
+type AuthErrors = {
+  name?: string;
+  email?: string;
+  password?: string;
+  general?: string;
+};
+
+export default function Login({ searchParams }: SignInPageProps) {
   return <AuthShell mode="signin" />;
 }
 
 export function AuthShell({ mode }: { mode: "signin" | "signup" }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<AuthErrors>({});
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const router = useRouter();
+
   const isLogin = mode === "signin";
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    setLoading(true);
+    try {
+      if (mode === "signup") {
+        const result = signUpSchema.safeParse({
+          name,
+          email,
+          password,
+        });
+
+        if (!result.success) {
+          const fieldErrors: Record<string, string> = {};
+
+          result.error.issues.forEach((issue) => {
+            const field = issue.path[0] as string;
+
+            if (!fieldErrors[field]) {
+              fieldErrors[field] = issue.message;
+            }
+          });
+
+          setErrors(fieldErrors);
+
+          return;
+        }
+
+        setErrors({});
+        const { error } = await signUp(result.data);
+
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+
+        toast.success("Verification email sent. Check your inbox.");
+
+        router.push("/verify-email");
+      }
+
+      if (mode === "signin") {
+        const result = signInSchema.safeParse({
+          email,
+          password,
+        });
+
+        if (!result.success) {
+          const fieldErrors: Record<string, string> = {};
+
+          result.error.issues.forEach((issue) => {
+            const field = issue.path[0] as string;
+
+            if (!fieldErrors[field]) {
+              fieldErrors[field] = issue.message;
+            }
+          });
+
+          setErrors(fieldErrors);
+          return;
+        }
+        setErrors({});
+
+        const { error } = await signIn(result.data);
+
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        toast.success("Logged in successfully");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setGoogleLoading(true);
+
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/dashboard/email",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background grid place-items-center p-6">
       <div className="w-full max-w-sm space-y-7">
@@ -26,7 +156,10 @@ export function AuthShell({ mode }: { mode: "signin" | "signup" }) {
           </p>
         </div>
 
-        <button className="w-full flex items-center justify-center gap-3 h-11 rounded-lg border border-border bg-card hover:bg-secondary transition-colors text-sm font-medium">
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full flex items-center justify-center gap-3 h-11 rounded-lg border border-border bg-card hover:bg-secondary transition-colors text-sm font-medium"
+        >
           <GoogleIcon /> Continue with Google
         </button>
 
@@ -35,29 +168,54 @@ export function AuthShell({ mode }: { mode: "signin" | "signup" }) {
           <div className="h-px flex-1 bg-border" />
         </div>
 
-        <form className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           {!isLogin && (
-            <Field label="Full name" type="text" placeholder="Ada Lovelace" />
+            <Field
+              label="Full name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              type="text"
+              error={errors.name}
+              placeholder="Ada Lovelace"
+            />
           )}
-          <Field label="Email" type="email" placeholder="you@corsair.dev" />
+          <Field
+            label="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            placeholder="you@corsair.dev"
+            error={errors.email}
+          />
           <Field
             label="Password"
             type="password"
             placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             rightLabel={
               isLogin ? (
-                <a href="#" className="text-xs text-primary hover:underline">
+                <a
+                  href="/forgot-password"
+                  className="text-xs text-primary hover:underline"
+                >
                   Forgot?
                 </a>
               ) : null
             }
+            error={errors.password}
           />
-          <Link
-            href="/dashboard/agent"
-            className="w-full h-11 flex items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:shadow-glow transition-all"
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 flex items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
           >
-            {isLogin ? "Sign in" : "Create account"}
-          </Link>
+            {loading
+              ? "Please wait..."
+              : isLogin
+                ? "Sign in"
+                : "Create account"}
+          </button>
         </form>
 
         <p className="text-sm text-muted-foreground text-center">
@@ -79,12 +237,10 @@ function Field({
   type,
   placeholder,
   rightLabel,
-}: {
-  label: string;
-  type: string;
-  placeholder: string;
-  rightLabel?: React.ReactNode;
-}) {
+  value,
+  onChange,
+  error,
+}: FieldProps) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
@@ -93,9 +249,19 @@ function Field({
       </div>
       <input
         type={type}
+        value={value}
+        onChange={onChange}
         placeholder={placeholder}
-        className="w-full h-11 px-3 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+        className={`w-full h-11 px-3 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all
+                    ${
+                      error
+                        ? "border-red-500 focus:ring-red-500/20"
+                        : "border-border"
+                    }
+          `}
       />
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
