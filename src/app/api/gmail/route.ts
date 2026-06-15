@@ -1,5 +1,5 @@
 import { corsair } from "@/server/corsair";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   const res = await corsair.withTenant("orion").gmail.db.threads.list();

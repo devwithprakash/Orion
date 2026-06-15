@@ -1,7 +1,19 @@
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import React from "react";
 
-const AuthLayout = ({ children }: { children: React.ReactNode }) => {
-  return <div>{children}</div>;
-};
+export default async function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-export default AuthLayout;
+  if (session?.user.emailVerified) {
+    redirect("/dashboard/email");
+  }
+  return <div>{children}</div>;
+}

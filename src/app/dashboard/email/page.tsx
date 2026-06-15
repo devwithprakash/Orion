@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Pencil,
 } from "lucide-react";
+import { ConnectGmailCard } from "@/components/dashboard/connect-google-card";
 
 const folders = [
   { key: "inbox", label: "Inbox", icon: Inbox, count: 14 },
@@ -139,9 +140,23 @@ export default function EmailPage() {
   const [compose, setCompose] = useState(false);
   const [showReader, setShowReader] = useState(false);
 
+  const connected = false;
+
+  const handleGmailConnect = async()=>{
+    try {
+      const data = await axios
+    } catch (error) {
+      
+    }
+  }
+
+  if (!connected) {
+    return <ConnectGmailCard />;
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
-       {/* email navigation links */}
+      {/* email navigation links */}
       <div className="border-b border-border">
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
@@ -188,7 +203,6 @@ export default function EmailPage() {
         </div>
       </div>
 
-     
       <div className="flex flex-1 overflow-hidden">
         {/* Email List */}
         <section

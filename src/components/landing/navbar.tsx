@@ -53,7 +53,7 @@ export function Navbar() {
               ))}
           </button>
           <Link
-            href="/login"
+            href="/signin"
             className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Login
