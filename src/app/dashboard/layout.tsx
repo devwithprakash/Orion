@@ -10,17 +10,17 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  // const session = await auth.api.getSession({
+  //   headers: await headers(),
+  // });
 
-  if (!session) {
-    redirect("/signin");
-  }
+  // if (!session) {
+  //   redirect("/signin");
+  // }
 
-  if (!session.user.emailVerified) {
-    redirect("/verify-email");
-  }
+  // if (!session.user.emailVerified) {
+  //   redirect("/verify-email");
+  // }
 
   return <DashboardShell>{children}</DashboardShell>;
 }

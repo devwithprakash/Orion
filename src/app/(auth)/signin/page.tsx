@@ -75,7 +75,7 @@ export function AuthShell({ mode }: { mode: "signin" | "signup" }) {
         }
 
         setErrors({});
-        const { error } = await signUp(result.data);
+        const { data, error } = await signUp(result.data);
 
         if (error) {
           toast.error(error.message);

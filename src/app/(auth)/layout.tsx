@@ -8,12 +8,14 @@ export default async function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  // const session = await auth.api.getSession({
+  //   headers: await headers(),
+  // });
 
-  if (session?.user.emailVerified) {
-    redirect("/dashboard/email");
-  }
+  // console.log(session)
+
+  // if (session?.user.emailVerified) {
+  //   redirect("/dashboard/email");
+  // }
   return <div>{children}</div>;
 }

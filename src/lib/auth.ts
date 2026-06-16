@@ -1,8 +1,9 @@
-import { prisma } from "@/server/db";
+import { prisma } from "@/lib/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { nextCookies } from "better-auth/next-js";
 import { Resend } from "resend";
+import { corsair } from "./corsair";
+import { setupCorsair } from "corsair";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = "Orion <onboarding@resend.dev>";
@@ -41,11 +42,27 @@ export const auth = betterAuth({
         from: EMAIL_FROM,
         to: user.email,
         subject: "Verify your email",
-        html: `
-          <p>Click below to verify your account.</p>
-          <a href="${url}">Verify Email</a>
-        `,
+        html: `<a href="${url}">Verify Email</a>`,
       });
+    },
+
+    autoSignInAfterVerification: true,
+    async afterEmailVerification(user, request) {
+      console.log(`📧 Email verified for: ${user.email}`);
+
+      try {
+        await setupCorsair(corsair, { tenantId: user.id });
+
+        console.log(`✅ Corsair tenant provisioned successfully`);
+        console.log(`   - User ID: ${user.id}`);
+        console.log(`   - Email: ${user.email}`);
+        console.log(`   - Ready for Gmail & Calendar connection`);
+      } catch (error) {
+        console.error(
+          `⚠️ Corsair tenant provisioning failed (non-blocking):`,
+          error,
+        );
+      }
     },
   },
 
@@ -55,8 +72,6 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-
-  // plugins: [nextCookies()],
 });
 
 export async function getSession(headers: Headers) {

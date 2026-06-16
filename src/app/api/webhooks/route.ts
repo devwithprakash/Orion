@@ -1,4 +1,4 @@
-import { corsair } from "@/server/corsair";
+import { corsair } from "@/lib/corsair";
 import { resolveBaseURL, success, trim } from "better-auth";
 import { processWebhook } from "corsair";
 import { NextResponse, type NextRequest } from "next/server";
@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
     body = text && text.trim() ? text : {};
   }
 
-  const tenantId = "orion";
-  // url.searchParams.get("tenantId") ||
-  // url.searchParams.get("tenant_id") ||
-  // undefined;
+  const tenantId =
+    url.searchParams.get("tenantId") ||
+    url.searchParams.get("tenant_id") ||
+    undefined;
 
   const result = await processWebhook(corsair, headers, body, { tenantId });
 
@@ -65,5 +65,3 @@ export async function GET() {
     timestamp: new Date().toISOString(),
   });
 }
-
-
