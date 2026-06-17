@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { corsair } from "@/lib/corsair";
+import { getConnectionStatus } from "@/lib/connection";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -10,13 +10,7 @@ export const GET = async (req: NextRequest) => {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const tenantId = session.user.id;
+  const status = await getConnectionStatus(session.user.id);
 
-  const res = await corsair.withTenant(tenantId).gmail.db.threads.list({
-    limit: 2
-  });
-
-  console.log(res);
-
-  return NextResponse.json({ data: res }, { status: 200 });
+  return NextResponse.json(status);
 };

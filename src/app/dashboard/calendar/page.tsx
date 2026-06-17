@@ -9,7 +9,12 @@ import {
   Trash2,
   Clock,
   Calendar as CalIcon,
+  RefreshCw,
 } from "lucide-react";
+import { ConnectGoogleCard } from "@/components/dashboard/connect-google-card";
+import { useConnectionStatus } from "@/hooks/use-connection-status";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 type Evt = {
   id: string;
@@ -20,45 +25,6 @@ type Evt = {
   notes?: string;
 };
 
-const initial: Evt[] = [
-  {
-    id: "1",
-    title: "Standup",
-    date: isoDateOffset(0),
-    start: "09:00",
-    end: "09:30",
-  },
-  {
-    id: "2",
-    title: "Friend @ Corsair",
-    date: isoDateOffset(3),
-    start: "09:00",
-    end: "10:00",
-    notes: "Integration kickoff",
-  },
-  {
-    id: "3",
-    title: "Design review",
-    date: isoDateOffset(2),
-    start: "14:00",
-    end: "16:00",
-  },
-  {
-    id: "4",
-    title: "Lunch with Alex",
-    date: isoDateOffset(1),
-    start: "12:30",
-    end: "13:30",
-  },
-  {
-    id: "5",
-    title: "Roadmap planning",
-    date: isoDateOffset(4),
-    start: "15:00",
-    end: "17:00",
-  },
-];
-
 function isoDateOffset(d: number) {
   const x = new Date();
   x.setDate(x.getDate() + d);
@@ -66,10 +32,59 @@ function isoDateOffset(d: number) {
 }
 
 export default function CalendarPage() {
-  const [events, setEvents] = useState<Evt[]>(initial);
   const [cursor, setCursor] = useState(new Date());
   const [editing, setEditing] = useState<Evt | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
+
+  const { data: conn } = useConnectionStatus();
+  const connected = conn?.googlecalendar;
+
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ["calendar-events"],
+    queryFn: async () => {
+      const res = await fetch("/api/calendar/events");
+      if (!res.ok) throw new Error("Failed to fetch events");
+      return res.json();
+    },
+    refetchInterval: 60000,
+    enabled: connected,
+  });
+
+  const rawEvents = data?.events || [];
+  
+  const events: Evt[] = useMemo(() => {
+    return rawEvents
+      .filter((e: any) => e.start?.dateTime || e.start?.date)
+      .map((e: any) => {
+        let dateStr = "";
+        let startStr = "00:00";
+        let endStr = "23:59";
+
+        if (e.start?.dateTime) {
+          const d = new Date(e.start.dateTime);
+          dateStr = e.start.dateTime.slice(0, 10);
+          startStr = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+        } else if (e.start?.date) {
+          dateStr = e.start.date;
+        }
+
+        if (e.end?.dateTime) {
+          const d = new Date(e.end.dateTime);
+          endStr = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+        }
+
+        return {
+          id: e.id,
+          title: e.summary || "No Title",
+          date: dateStr,
+          start: startStr,
+          end: endStr,
+          notes: e.description || "",
+        };
+      });
+  }, [rawEvents]);
 
   const monthDays = useMemo(() => buildMonth(cursor), [cursor]);
   const upcoming = useMemo(() => {
@@ -84,6 +99,59 @@ export default function CalendarPage() {
     month: "long",
     year: "numeric",
   });
+
+  const createMutation = useMutation({
+    mutationFn: async (e: Evt) => {
+      const res = await fetch("/api/calendar/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(e),
+      });
+      if (!res.ok) throw new Error("Failed to create event");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      toast.success("Event created");
+    },
+    onError: (err) => toast.error(err.message)
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (e: Evt) => {
+      const res = await fetch(`/api/calendar/events/${e.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(e),
+      });
+      if (!res.ok) throw new Error("Failed to update event");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      toast.success("Event updated");
+    },
+    onError: (err) => toast.error(err.message)
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/calendar/events/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete event");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      toast.success("Event deleted");
+    },
+    onError: (err) => toast.error(err.message)
+  });
+
+  if (connected === false) {
+    return <ConnectGoogleCard service="googlecalendar" />;
+  }
 
   return (
     <div className="h-full flex flex-col lg:flex-row overflow-auto lg:overflow-hidden">
@@ -110,12 +178,22 @@ export default function CalendarPage() {
           >
             Today
           </button>
-          <button
-            onClick={() => setCreating(new Date().toISOString().slice(0, 10))}
-            className="ml-auto flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:shadow-glow transition-all"
-          >
-            <Plus className="size-4" /> Event
-          </button>
+
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="shrink-0 size-9 grid place-items-center rounded-lg border border-border hover:bg-secondary transition-colors"
+            >
+              <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
+            </button>
+            <button
+              onClick={() => setCreating(new Date().toISOString().slice(0, 10))}
+              className="flex items-center gap-2 px-4 h-9 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:shadow-glow transition-all"
+            >
+              <Plus className="size-4" /> Event
+            </button>
+          </div>
         </div>
 
         {/* Month grid */}
@@ -130,7 +208,12 @@ export default function CalendarPage() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7 flex-1 auto-rows-fr">
+          <div className="grid grid-cols-7 flex-1 auto-rows-fr relative">
+            {isLoading && (
+              <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+                <RefreshCw className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
             {monthDays.map((d) => {
               const iso = d.toISOString().slice(0, 10);
               const dayEvents = events.filter((e) => e.date === iso);
@@ -205,7 +288,7 @@ export default function CalendarPage() {
         <EventModal
           initial={
             editing ?? {
-              id: crypto.randomUUID(),
+              id: "",
               title: "",
               date: creating ?? isoDateOffset(0),
               start: "09:00",
@@ -213,22 +296,36 @@ export default function CalendarPage() {
             }
           }
           isNew={!editing}
+          isLoading={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending}
           onClose={() => {
             setEditing(null);
             setCreating(null);
           }}
           onSave={(e) => {
-            setEvents((prev) =>
-              editing ? prev.map((p) => (p.id === e.id ? e : p)) : [...prev, e],
-            );
-            setEditing(null);
-            setCreating(null);
+            if (editing) {
+              updateMutation.mutate(e, {
+                onSuccess: () => {
+                  setEditing(null);
+                  setCreating(null);
+                }
+              });
+            } else {
+              createMutation.mutate(e, {
+                onSuccess: () => {
+                  setEditing(null);
+                  setCreating(null);
+                }
+              });
+            }
           }}
           onDelete={
             editing
               ? () => {
-                  setEvents((p) => p.filter((x) => x.id !== editing.id));
-                  setEditing(null);
+                  deleteMutation.mutate(editing.id, {
+                    onSuccess: () => {
+                      setEditing(null);
+                    }
+                  });
                 }
               : undefined
           }
@@ -241,12 +338,14 @@ export default function CalendarPage() {
 function EventModal({
   initial,
   isNew,
+  isLoading,
   onClose,
   onSave,
   onDelete,
 }: {
   initial: Evt;
   isNew: boolean;
+  isLoading: boolean;
   onClose: () => void;
   onSave: (e: Evt) => void;
   onDelete?: () => void;
@@ -254,7 +353,7 @@ function EventModal({
   const [e, setE] = useState<Evt>(initial);
   function submit(ev: FormEvent) {
     ev.preventDefault();
-    if (!e.title.trim()) return;
+    if (!e.title.trim() || isLoading) return;
     onSave(e);
   }
   return (
@@ -283,7 +382,8 @@ function EventModal({
               value={e.title}
               onChange={(ev) => setE({ ...e, title: ev.target.value })}
               placeholder="Event title"
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              disabled={isLoading}
+              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
             />
           </div>
           <div className="space-y-1.5">
@@ -292,7 +392,8 @@ function EventModal({
               type="date"
               value={e.date}
               onChange={(ev) => setE({ ...e, date: ev.target.value })}
-              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              disabled={isLoading}
+              className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -302,7 +403,8 @@ function EventModal({
                 type="time"
                 value={e.start}
                 onChange={(ev) => setE({ ...e, start: ev.target.value })}
-                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                disabled={isLoading}
+                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
               />
             </div>
             <div className="space-y-1.5">
@@ -311,7 +413,8 @@ function EventModal({
                 type="time"
                 value={e.end}
                 onChange={(ev) => setE({ ...e, end: ev.target.value })}
-                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                disabled={isLoading}
+                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
               />
             </div>
           </div>
@@ -321,7 +424,8 @@ function EventModal({
               value={e.notes ?? ""}
               onChange={(ev) => setE({ ...e, notes: ev.target.value })}
               rows={3}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              disabled={isLoading}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none disabled:opacity-50"
             />
           </div>
         </div>
@@ -330,7 +434,8 @@ function EventModal({
             <button
               type="button"
               onClick={onDelete}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg text-destructive hover:bg-destructive/10"
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg text-destructive hover:bg-destructive/10 disabled:opacity-50"
             >
               <Trash2 className="size-3.5" /> Delete
             </button>
@@ -341,14 +446,17 @@ function EventModal({
             <button
               type="button"
               onClick={onClose}
-              className="text-xs px-3 py-2 rounded-lg hover:bg-secondary text-muted-foreground"
+              disabled={isLoading}
+              className="text-xs px-3 py-2 rounded-lg hover:bg-secondary text-muted-foreground disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:shadow-glow transition-all"
+              disabled={isLoading}
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:shadow-glow transition-all disabled:opacity-50 inline-flex items-center gap-2"
             >
+              {isLoading && <RefreshCw className="size-3.5 animate-spin" />}
               {isNew ? "Create" : "Save"}
             </button>
           </div>

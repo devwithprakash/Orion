@@ -124,3 +124,21 @@ model Verification {
   @@index([identifier])
   @@map("verification")
 }
+
+model SyncState {
+  id           String    @id @default(cuid())
+  tenantId     String    @map("tenant_id")
+  service      String    // "gmail" | "googlecalendar"
+  status       String    @default("pending") // pending | syncing | synced | failed
+  lastSyncAt   DateTime? @map("last_sync_at")
+  syncToken    String?   @map("sync_token")
+  historyId    String?   @map("history_id")
+  errorMessage String?   @map("error_message")
+  retryCount   Int       @default(0) @map("retry_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@unique([tenantId, service])
+  @@index([tenantId])
+  @@map("sync_states")
+}

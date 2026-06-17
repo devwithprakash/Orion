@@ -1,12 +1,15 @@
+"use client";
+
 import { Bot, Calendar, Mail, Moon, Search, Settings, Sun } from "lucide-react";
 import { OrionLogo } from "../landing/orion-logo";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
+import { useConnectionStatus } from "@/hooks/use-connection-status";
 
 const nav = [
-  { to: "/dashboard/email", label: "Email", icon: Mail },
-  { to: "/dashboard/calendar", label: "Calendar", icon: Calendar },
+  { to: "/dashboard/email", label: "Email", icon: Mail, service: "gmail" as const },
+  { to: "/dashboard/calendar", label: "Calendar", icon: Calendar, service: "googlecalendar" as const },
   { to: "/dashboard/agent", label: "Agent", icon: Bot },
-  // { to: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Sidebar({
@@ -18,6 +21,9 @@ export default function Sidebar({
   theme: string | undefined;
   toggle: () => void;
 }) {
+  const { data: session } = authClient.useSession();
+  const { data: connectionStatus } = useConnectionStatus();
+
   return (
     <>
       <Link href={"/"}>
@@ -37,6 +43,7 @@ export default function Sidebar({
       <nav className="flex-1 px-3 space-y-0.5 overflow-auto">
         {nav.map((n) => {
           const active = pathname.startsWith(n.to);
+          const isConnected = n.service ? connectionStatus?.[n.service] : true;
           return (
             <Link
               key={n.to}
@@ -47,20 +54,25 @@ export default function Sidebar({
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary"
               }`}
             >
-              <n.icon className="size-4" />
+              <div className="relative">
+                <n.icon className="size-4" />
+                {n.service && isConnected && (
+                  <span className="absolute -top-1 -right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-background border border-emerald-600 shadow-glow" />
+                )}
+              </div>
               {n.label}
             </Link>
           );
         })}
       </nav>
       <div className="p-3 border-t border-sidebar-border flex items-center gap-3">
-        <div className="size-8 rounded-full bg-primary/20 grid place-items-center text-xs font-semibold text-primary">
-          AL
+        <div className="size-8 rounded-full bg-primary/20 grid place-items-center text-xs font-semibold text-primary uppercase">
+          {session?.user.name?.slice(0, 2) || "U"}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">Kaneki Ken</div>
+          <div className="text-sm font-medium truncate">{session?.user.name || "User"}</div>
           <div className="text-[10px] text-muted-foreground truncate">
-            kanekiken@gmail.com
+            {session?.user.email || "Loading..."}
           </div>
         </div>
         <button

@@ -1,10 +1,12 @@
 import { corsair } from "@/lib/corsair";
-import { resolveBaseURL, success, trim } from "better-auth";
 import { processWebhook } from "corsair";
 import { NextResponse, type NextRequest } from "next/server";
+import { resolveTenantFromEmail } from "@/lib/connection";
+import { triggerIncrementalGmailSync } from "@/lib/sync/gmail-sync";
+import { triggerIncrementalCalendarSync } from "@/lib/sync/calendar-sync";
 
 export async function POST(request: NextRequest) {
-  const url = new URL(request.url);
+  console.log("Webhook triggered 🥳🥳🥳🥳🥳🥳🥳🥳");
 
   const headers: Record<string, string> = {};
 
@@ -22,11 +24,16 @@ export async function POST(request: NextRequest) {
   }
 
   const tenantId =
-    url.searchParams.get("tenantId") ||
-    url.searchParams.get("tenant_id") ||
-    undefined;
+    (body as any).emailAddress || (body as any).userEmail || undefined;
 
-  const result = await processWebhook(corsair, headers, body, { tenantId });
+  let resolvedTenantId = tenantId;
+  if (!resolvedTenantId && (body as any).emailAddress) {
+    resolvedTenantId = await resolveTenantFromEmail((body as any).emailAddress);
+  }
+
+  const result = await processWebhook(corsair, headers, body, {
+    tenantId: resolvedTenantId,
+  });
 
   console.info("Plugin Processed", result.plugin, result.action);
 
@@ -36,6 +43,25 @@ export async function POST(request: NextRequest) {
   if (responseHeaders) {
     for (const [key, value] of Object.entries(responseHeaders)) {
       nextHeaders.set(key, value);
+    }
+  }
+
+  if (result.plugin === "gmail") {
+    if (resolvedTenantId) {
+      console.info(
+        `Gmail event received: ${result.action} — triggering incremental sync`,
+      );
+      triggerIncrementalGmailSync(resolvedTenantId).catch(console.error);
+    } else {
+      console.warn(
+        "Gmail webhook received but no tenantId resolved — skipping sync",
+      );
+    }
+  }
+
+  if (result.plugin === "googlecalendar") {
+    if (resolvedTenantId) {
+      triggerIncrementalCalendarSync(resolvedTenantId).catch(console.error);
     }
   }
 

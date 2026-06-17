@@ -14,144 +14,83 @@ import {
   X,
   ArrowLeft,
   Pencil,
+  RefreshCw,
 } from "lucide-react";
-import { ConnectGmailCard } from "@/components/dashboard/connect-google-card";
+import { ConnectGoogleCard } from "@/components/dashboard/connect-google-card";
+import { useConnectionStatus } from "@/hooks/use-connection-status";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const folders = [
-  { key: "inbox", label: "Inbox", icon: Inbox, count: 14 },
-  { key: "starred", label: "Starred", icon: Star, count: 4 },
+  { key: "inbox", label: "Inbox", icon: Inbox },
+  { key: "starred", label: "Starred", icon: Star },
   { key: "sent", label: "Sent", icon: Send },
-  { key: "drafts", label: "Drafts", icon: FileText, count: 2 },
+  { key: "drafts", label: "Drafts", icon: FileText },
   { key: "trash", label: "Trash", icon: Trash2 },
 ];
 
-type Email = {
-  id: number;
-  from: string;
-  email: string;
-  avatar: string;
-  subject: string;
-  preview: string;
-  body: string[];
-  time: string;
-  unread: boolean;
-  starred: boolean;
+type GmailThread = {
+  id: string;
+  entity_id: string;
+  entity_type: string;
+  data: {
+    id: string;
+    snippet: string;
+    historyId: string;
+    createdAt: string;
+  };
 };
-
-const emails: Email[] = [
-  {
-    id: 1,
-    from: "Sarah Jenkins",
-    email: "sarah@studio.dev",
-    avatar: "SJ",
-    subject: "Finalizing the design specs for Orion Dashboard",
-    preview:
-      "Hey team, I've updated the Figma components for dark mode transition…",
-    time: "10:24 AM",
-    unread: true,
-    starred: true,
-    body: [
-      "Hey team,",
-      "I've updated the Figma components for the dark mode transition and added the missing tokens for the agent surface. The spacing scale now matches the new 4pt grid.",
-      "A few things I'd love your sign-off on before we push to production: the accent-soft token in dark mode, border opacity, and the new shadow-glow on primary CTAs.",
-      "Let me know by EOD and I'll merge.",
-      "— Sarah",
-    ],
-  },
-  {
-    id: 2,
-    from: "Alex Chen",
-    email: "alex@northwind.co",
-    avatar: "AC",
-    subject: "Re: Q3 deck review",
-    preview: "Two things — can we tighten the narrative on slide 7?…",
-    time: "9:02 AM",
-    unread: true,
-    starred: false,
-    body: [
-      "Two things —",
-      "Can we tighten the narrative on slide 7? Also the metrics on 12 look stale. Other than that this is a great revision.",
-      "— A",
-    ],
-  },
-  {
-    id: 3,
-    from: "Google Calendar",
-    email: "no-reply@google.com",
-    avatar: "GC",
-    subject: "Event update: Weekly Sync moved to Thursday",
-    preview: "The event 'Weekly Sync' has been moved to Thursday at 3:00 PM.",
-    time: "Yest",
-    unread: true,
-    starred: false,
-    body: [
-      "The event 'Weekly Sync' has been moved to Thursday at 3:00 PM by the organizer.",
-    ],
-  },
-  {
-    id: 4,
-    from: "Linear",
-    email: "updates@linear.app",
-    avatar: "LN",
-    subject: "12 issues completed this week",
-    preview:
-      "Your team shipped 12 issues. Top contributor: Jordan with 5 issues…",
-    time: "Mon",
-    unread: false,
-    starred: false,
-    body: [
-      "Your team shipped 12 issues this week.",
-      "Top contributor: Jordan with 5 issues completed across ORI-401, 402, 403, 410, and 412.",
-    ],
-  },
-  {
-    id: 5,
-    from: "Stripe",
-    email: "billing@stripe.com",
-    avatar: "ST",
-    subject: "Receipt for your subscription",
-    preview: "Thanks for using Stripe. Here's your receipt for $99.00.",
-    time: "Mon",
-    unread: false,
-    starred: false,
-    body: [
-      "Thanks for using Stripe. Here's your receipt for $99.00 — Orion Pro, monthly.",
-    ],
-  },
-  {
-    id: 6,
-    from: "friend@corsair.dev",
-    email: "friend@corsair.dev",
-    avatar: "FR",
-    subject: "Looking forward to Thursday",
-    preview: "Just got your invite — see you at 9.",
-    time: "Sun",
-    unread: false,
-    starred: true,
-    body: [
-      "Just got your invite — see you at 9. I'll prep the integration notes beforehand.",
-    ],
-  },
-];
 
 export default function EmailPage() {
   const [activeFolder, setActiveFolder] = useState("inbox");
-  const [selected, setSelected] = useState<Email | null>(emails[0]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compose, setCompose] = useState(false);
   const [showReader, setShowReader] = useState(false);
 
-  const connected = false;
+  const { data: conn } = useConnectionStatus();
+  const connected = conn?.gmail;
 
-  const handleGmailConnect = async()=>{
-    try {
-      const data = await axios
-    } catch (error) {
-      
-    }
-  }
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ["gmail-threads"],
+    queryFn: async () => {
+      const res = await fetch("/api/gmail/threads");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    refetchInterval: 30000,
+    enabled: connected,
+  });
 
-  if (!connected) {
-    return <ConnectGmailCard />;
+  const threads = data?.threads || [];
+  console.log(threads);
+
+  // Transform the raw Gmail API thread into our UI format
+  // We're doing a simplified mapping here assuming standard payload format
+  const formattedEmails = (threads as any[]).map((thread) => ({
+    id: thread.data.id,
+    from: thread.from || "Unknown Sender",
+    email: thread.fromEmail || "",
+    avatar: (thread.from || "??").slice(0, 2).toUpperCase(),
+    subject: thread.subject || thread.data.snippet || "(No Subject)",
+    preview: thread.data.snippet || "",
+    body: [thread.data.snippet || ""],
+    time: new Date(thread.date || thread.data.createdAt).toLocaleTimeString(
+      [],
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      },
+    ),
+    unread: false,
+    starred: false,
+  }));
+
+  const selected = formattedEmails.find((e: any) => e.id === selectedId);
+
+  console.log("selected", selected)
+
+  if (connected === false) {
+    return <ConnectGoogleCard service="gmail" />;
   }
 
   return (
@@ -171,30 +110,34 @@ export default function EmailPage() {
                 }`}
               >
                 {folder.label}
-
-                {folder.count && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {folder.count}
-                  </span>
-                )}
               </button>
             ))}
           </div>
 
-          <button
-            onClick={() => setCompose(true)}
-            className="shrink-0 flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            <Pencil className="size-4" />
-            Compose
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="shrink-0 size-9 grid place-items-center rounded-lg border border-border hover:bg-secondary transition-colors"
+            >
+              <RefreshCw
+                className={`size-4 ${isFetching ? "animate-spin" : ""}`}
+              />
+            </button>
+            <button
+              onClick={() => setCompose(true)}
+              className="shrink-0 flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <Pencil className="size-4" />
+              Compose
+            </button>
+          </div>
         </div>
 
         {/* Search */}
         <div className="px-4 pb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-
             <input
               placeholder="Search emails..."
               className="w-full h-10 rounded-lg border border-border bg-card pl-10 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -210,54 +153,64 @@ export default function EmailPage() {
             showReader ? "hidden" : "flex"
           } md:flex flex-col w-full md:w-[360px] shrink-0 border-r border-border overflow-hidden`}
         >
-          <div className="flex-1 overflow-auto divide-y divide-border">
-            {emails.map((email) => (
-              <button
-                key={email.id}
-                onClick={() => {
-                  setSelected(email);
-                  setShowReader(true);
-                }}
-                className={`w-full p-4 text-left transition-colors ${
-                  selected?.id === email.id
-                    ? "bg-accent-soft/40"
-                    : "hover:bg-secondary/50"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={`truncate text-xs ${
-                      email.unread
-                        ? "font-semibold text-foreground"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {email.from}
-                  </span>
-
-                  {email.starred && (
-                    <Star className="size-3 fill-primary text-primary" />
-                  )}
-
-                  <span className="ml-auto text-[10px] font-mono text-muted-foreground">
-                    {email.time}
-                  </span>
-                </div>
-
-                <div
-                  className={`line-clamp-1 text-sm mb-1 ${
-                    email.unread ? "font-semibold" : ""
+          {isLoading ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              Loading emails...
+            </div>
+          ) : formattedEmails.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              No emails found.
+            </div>
+          ) : (
+            <div className="flex-1 overflow-auto divide-y divide-border">
+              {formattedEmails.map((email: any) => (
+                <button
+                  key={email.id}
+                  onClick={() => {
+                    setSelectedId(email.id);
+                    setShowReader(true);
+                  }}
+                  className={`w-full p-4 text-left transition-colors ${
+                    selectedId === email.id
+                      ? "bg-accent-soft/40"
+                      : "hover:bg-secondary/50"
                   }`}
                 >
-                  {email.subject}
-                </div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={`truncate text-xs ${
+                        email.unread
+                          ? "font-semibold text-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {email.from}
+                    </span>
 
-                <div className="line-clamp-1 text-xs text-muted-foreground">
-                  {email.preview}
-                </div>
-              </button>
-            ))}
-          </div>
+                    {email.starred && (
+                      <Star className="size-3 fill-primary text-primary" />
+                    )}
+
+                    <span className="ml-auto text-[10px] font-mono text-muted-foreground">
+                      {email.time}
+                    </span>
+                  </div>
+
+                  <div
+                    className={`line-clamp-1 text-sm mb-1 ${
+                      email.unread ? "font-semibold" : ""
+                    }`}
+                  >
+                    {email.subject}
+                  </div>
+
+                  <div className="line-clamp-1 text-xs text-muted-foreground">
+                    {email.preview}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Reader */}
@@ -316,8 +269,8 @@ export default function EmailPage() {
                   </div>
                 </div>
 
-                <div className="max-w-3xl space-y-4 text-[15px] leading-7 text-foreground/90">
-                  {selected.body.map((paragraph, index) => (
+                <div className="max-w-3xl space-y-4 text-[15px] leading-7 text-foreground/90 whitespace-pre-wrap">
+                  {selected.body.map((paragraph: string, index: number) => (
                     <p key={index}>{paragraph}</p>
                   ))}
                 </div>
@@ -344,9 +297,35 @@ function Composer({ onClose }: { onClose: () => void }) {
   const [body, setBody] = useState("");
   const [showCcBcc, setShowCcBcc] = useState(false);
 
+  const queryClient = useQueryClient();
+
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/gmail/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, cc, bcc, subject, message: body }),
+      });
+      if (!res.ok) throw new Error("Failed to send");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Message sent");
+      queryClient.invalidateQueries({ queryKey: ["gmail-threads"] });
+      onClose();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   function send(e: FormEvent) {
     e.preventDefault();
-    onClose();
+    if (!to || !subject || !body) {
+      toast.error("Missing required fields");
+      return;
+    }
+    sendMutation.mutate();
   }
 
   return (
@@ -356,12 +335,7 @@ function Composer({ onClose }: { onClose: () => void }) {
           <h2 className="text-sm font-semibold">New message</h2>
           <div className="flex items-center gap-1">
             <button
-              onClick={onClose}
-              className="text-xs px-3 py-1.5 rounded hover:bg-secondary text-muted-foreground"
-            >
-              Save draft
-            </button>
-            <button
+              type="button"
               onClick={onClose}
               className="size-8 grid place-items-center rounded hover:bg-secondary"
             >
@@ -410,9 +384,11 @@ function Composer({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:shadow-glow transition-all"
+              disabled={sendMutation.isPending}
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:shadow-glow transition-all disabled:opacity-50"
             >
-              <Send className="size-3.5" /> Send
+              <Send className="size-3.5" />{" "}
+              {sendMutation.isPending ? "Sending..." : "Send"}
             </button>
           </div>
         </form>

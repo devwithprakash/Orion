@@ -3,6 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { corsair } from "@/lib/corsair";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import {
+  triggerInitialGmailSync,
+} from "@/lib/sync/gmail-sync";
+import {
+  triggerInitialCalendarSync,
+} from "@/lib/sync/calendar-sync";
 
 const REDIRECT_URI = `${process.env.BETTER_AUTH_URL}/api/corsair/callback`;
 
@@ -18,7 +24,6 @@ export async function GET(request: NextRequest) {
   }
 
   const userId = session.user.id;
-  const tenantId = userId;
 
   if (!session.user.emailVerified) {
     return NextResponse.json(
@@ -51,19 +56,15 @@ export async function GET(request: NextRequest) {
 
     const plugin = result.plugin || "unknown";
 
-    // if (plugin === "gmail") {
-    //   // Trigger initial Gmail sync
-    //   await triggerInitialGmailSync(userId);
-    //   // Trigger webhook setup
-    //   await setupGmailWebhooks(userId);
-    // }
+    if (plugin === "gmail") {
+      // Trigger initial Gmail sync
+      triggerInitialGmailSync(userId).catch((e) => console.error(e));
+    }
 
-    // if (plugin === "googlecalendar") {
-    //   // Trigger initial Calendar sync
-    //   await triggerInitialCalendarSync(userId);
-    //   // Trigger webhook setup
-    //   await setupCalendarWebhooks(userId);
-    // }
+    if (plugin === "googlecalendar") {
+      // Trigger initial Calendar sync
+      triggerInitialCalendarSync(userId).catch((e) => console.error(e));
+    }
 
     const response = NextResponse.redirect(
       `${process.env.BETTER_AUTH_URL}/dashboard/email?connected=${encodeURIComponent(result.plugin)}`,
