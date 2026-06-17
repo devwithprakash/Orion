@@ -57,7 +57,11 @@ export async function fetchAndCacheCalendarEvents(
       .googlecalendar.db.events.list({ limit });
 
     if (cached && cached.length > 0) {
-      return { events: cached, source: "cache" };
+      const mappedEvents = cached.map((c: any) => ({
+        id: c.externalId,
+        ...c.data,
+      }));
+      return { events: mappedEvents, source: "cache" };
     }
 
     // Step 2: Cache miss — fetch from Google Calendar API

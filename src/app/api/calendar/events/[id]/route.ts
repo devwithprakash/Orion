@@ -22,21 +22,28 @@ export const PUT = async (
   const tenantId = session.user.id;
   const { id: eventId } = await params;
   const body = await req.json();
-  const { title, date, start, end, notes } = body;
+  const { title, date, start, end, notes, attendees, timeZone } = body;
 
   try {
     const patch: Record<string, unknown> = {};
     if (title) patch.summary = title;
     if (notes !== undefined) patch.description = notes;
-    if (date && start) patch.start = { dateTime: `${date}T${start}:00` };
-    if (date && end) patch.end = { dateTime: `${date}T${end}:00` };
+    if (date && start) patch.start = { dateTime: `${date}T${start}:00`, timeZone: timeZone || "UTC" };
+    if (date && end) patch.end = { dateTime: `${date}T${end}:00`, timeZone: timeZone || "UTC" };
+    if (attendees !== undefined) {
+      patch.attendees = attendees
+        ? (typeof attendees === "string" ? attendees.split(",") : attendees)
+            .map((email: string) => ({ email: email.trim() }))
+            .filter((a: { email: string }) => a.email)
+        : [];
+    }
 
     const event = await corsair
       .withTenant(tenantId)
-      .googlecalendar.api.events.patch({
+      .googlecalendar.api.events.update({
         calendarId: "primary",
-        eventId,
-        requestBody: patch,
+        id: eventId,
+        event: patch,
       });
 
     triggerIncrementalCalendarSync(tenantId).catch((e) =>
@@ -76,7 +83,7 @@ export const DELETE = async (
       .withTenant(tenantId)
       .googlecalendar.api.events.delete({
         calendarId: "primary",
-        eventId,
+        id: eventId,
       });
 
     triggerIncrementalCalendarSync(tenantId).catch((e) =>

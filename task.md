@@ -1,0 +1,17 @@
+- [x] Fix "Unknown Sender" by fetching full format and searching messages backwards.
+- [/] Command Palette (`cmdk`)
+  - [ ] Create `CommandPalette` component
+  - [ ] Add searchable actions (Navigation, Actions)
+  - [ ] Add keyboard shortcut visual hints in the palette
+- [ ] Keyboard Shortcut Provider
+  - [ ] Create `ShortcutProvider` to handle global keydowns
+  - [ ] Ignore events in inputs/textareas
+  - [ ] Implement global shortcuts (`C`, `G I`, `/`, etc.)
+- [ ] Integration
+  - [ ] Ensure Command Palette actions and Shortcuts share the same logic
+  - [ ] Add Command Palette to Dashboard Layout
+- [ ] Performance Optimization
+  - [ ] Migrate `api/gmail/threads` to DB-first cache architecture
+  - [ ] Migrate `api/calendar/events` to DB-first cache architecture
+  - [ ] Implement Background Sync via `/api/sync` on mount
+  - [ ] Adjust TanStack Query `staleTime` and `refetch` policies

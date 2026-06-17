@@ -154,3 +154,49 @@
   background-color: color-mix(in oklab, var(--background) 75%, transparent);
   backdrop-filter: saturate(180%) blur(12px);
 }
+
+/* ── Scrollbar styling ─────────────────────────────────────────────────────── */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--foreground) 15%, transparent);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--foreground) 25%, transparent);
+  }
+
+  /* Hide scrollbar utility */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Calendar event color tokens ───────────────────────────────────────────── */
+@theme inline {
+  --color-event-violet: oklch(0.6 0.2 290);
+  --color-event-blue:   oklch(0.6 0.18 240);
+  --color-event-emerald:oklch(0.6 0.18 160);
+  --color-event-amber:  oklch(0.7 0.18 80);
+  --color-event-rose:   oklch(0.62 0.22 20);
+}
+
+/* ── Smooth page transitions ───────────────────────────────────────────────── */
+@layer base {
+  @media (prefers-reduced-motion: no-preference) {
+    .animate-in {
+      animation-duration: 200ms;
+      animation-fill-mode: both;
+    }
+  }
+}

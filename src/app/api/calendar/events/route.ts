@@ -52,7 +52,7 @@ export const POST = async (req: NextRequest) => {
 
   const tenantId = session.user.id;
   const body = await req.json();
-  const { title, date, start, end, notes, attendees } = body;
+  const { title, date, start, end, notes, attendees, timeZone } = body;
 
   if (!title || !date || !start || !end) {
     return NextResponse.json(
@@ -72,10 +72,12 @@ export const POST = async (req: NextRequest) => {
         event: {
           summary: title,
           description: notes ?? "",
-          start: { dateTime: startDateTime },
-          end: { dateTime: endDateTime },
+          start: { dateTime: startDateTime, timeZone: timeZone || "UTC" },
+          end: { dateTime: endDateTime, timeZone: timeZone || "UTC" },
           attendees: attendees
-            ? attendees.map((email: string) => ({ email }))
+            ? (typeof attendees === "string" ? attendees.split(",") : attendees)
+                .map((email: string) => ({ email: email.trim() }))
+                .filter((a: { email: string }) => a.email)
             : [],
         },
       });
