@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { prisma } from "@/lib/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -6,7 +7,6 @@ import { corsair } from "./corsair";
 import { setupCorsair } from "corsair";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = "Orion <onboarding@resend.dev>";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -22,7 +22,7 @@ export const auth = betterAuth({
 
     sendResetPassword: async ({ user, url }) => {
       const result = await resend.emails.send({
-        from: EMAIL_FROM,
+        from: process.env.RESEND_EMAIL as string,
         to: user.email,
         subject: "Reset your password",
         html: `
@@ -42,7 +42,7 @@ export const auth = betterAuth({
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
       await resend.emails.send({
-        from: EMAIL_FROM,
+        from: process.env.RESEND_EMAIL as string,
         to: user.email,
         subject: "Verify your email",
         html: `<a href="${url}">Verify Email</a>`,

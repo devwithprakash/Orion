@@ -9,8 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "pnpm dlx prisma generate",
-    "db:migrate": "dlx prisma migrate",
-    "test-script": "tsx src/server/test.ts"
+    "db:migrate": "dlx prisma migrate"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
