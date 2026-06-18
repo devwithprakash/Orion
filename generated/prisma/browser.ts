@@ -62,3 +62,14 @@ export type Verification = Prisma.VerificationModel
  * 
  */
 export type SyncState = Prisma.SyncStateModel
+/**
+ * Model AgentUsage
+ * Tracks how many AI agent actions a user has consumed today.
+ * The `date` field (YYYY-MM-DD) acts as a natural daily reset key.
+ */
+export type AgentUsage = Prisma.AgentUsageModel
+/**
+ * Model AgentLog
+ * Stores a full audit log of every agent run for analytics and debugging.
+ */
+export type AgentLog = Prisma.AgentLogModel

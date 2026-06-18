@@ -142,3 +142,35 @@ model SyncState {
   @@index([tenantId])
   @@map("sync_states")
 }
+
+/// Tracks how many AI agent actions a user has consumed today.
+/// The `date` field (YYYY-MM-DD) acts as a natural daily reset key.
+model AgentUsage {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  date      String   // "YYYY-MM-DD" in UTC
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("agent_usage")
+}
+
+/// Stores a full audit log of every agent run for analytics and debugging.
+model AgentLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  prompt    String
+  plan      Json     @default("{}") // the structured plan the AI returned
+  results   Json     @default("[]") // per-action execution results
+  status    String   @default("pending") // pending | success | partial | failed
+  error     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("agent_logs")
+}
+

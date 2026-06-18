@@ -59,7 +59,9 @@ export const ModelName = {
   Session: 'Session',
   Account: 'Account',
   Verification: 'Verification',
-  SyncState: 'SyncState'
+  SyncState: 'SyncState',
+  AgentUsage: 'AgentUsage',
+  AgentLog: 'AgentLog'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -203,6 +205,33 @@ export const SyncStateScalarFieldEnum = {
 } as const
 
 export type SyncStateScalarFieldEnum = (typeof SyncStateScalarFieldEnum)[keyof typeof SyncStateScalarFieldEnum]
+
+
+export const AgentUsageScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  date: 'date',
+  count: 'count',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AgentUsageScalarFieldEnum = (typeof AgentUsageScalarFieldEnum)[keyof typeof AgentUsageScalarFieldEnum]
+
+
+export const AgentLogScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  prompt: 'prompt',
+  plan: 'plan',
+  results: 'results',
+  status: 'status',
+  error: 'error',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AgentLogScalarFieldEnum = (typeof AgentLogScalarFieldEnum)[keyof typeof AgentLogScalarFieldEnum]
 
 
 export const SortOrder = {

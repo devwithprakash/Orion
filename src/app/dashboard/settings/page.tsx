@@ -1,29 +1,43 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { ConnectGoogleCard } from "@/components/dashboard/connect-google-card";
-import { User, Settings, Shield } from "lucide-react";
+import { Settings } from "lucide-react";
 import { redirect } from "next/navigation";
+import { AlreadyConnectedBanner } from "@/components/dashboard/already-connected-banner";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; service?: string }>;
+}) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
     redirect("/signin");
   }
 
+  const params = await searchParams;
+  const alreadyConnectedService =
+    params.error === "already_connected" ? params.service : undefined;
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-background text-foreground h-full overflow-y-auto">
       <div className="max-w-4xl mx-auto w-full p-6 md:p-10 space-y-10">
-        
+
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Settings className="size-8 text-primary" />
             Settings
           </h1>
           <p className="text-muted-foreground">
-            Manage your account details and integration connections.
+            Manage your integration connections.
           </p>
         </div>
+
+        {/* Already-connected error banner (client component) */}
+        {alreadyConnectedService && (
+          <AlreadyConnectedBanner service={alreadyConnectedService} />
+        )}
 
         {/* Integrations */}
         <div className="space-y-4">

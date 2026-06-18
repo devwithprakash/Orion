@@ -12,6 +12,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/email": "Inbox",
   "/dashboard/calendar": "Calendar",
   "/dashboard/agent": "Agent",
+  "/dashboard/settings": "Settings",
 };
 
 function getPageTitle(pathname: string): string {
