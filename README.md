@@ -2,6 +2,10 @@
 
 **Live Demo**: https://orion.prakashjangid.in
 
+**Demo Credentials**:
+- **Email**: captainlevi964@gmail.com
+- **Password**: Demo@1234
+
 ## 1. Project Name & Description
 
 **Orion** is a unified email and calendar workspace that intelligently aggregates your Gmail and Google Calendar data into a single, intuitive interface. Powered by an AI agent.
