@@ -114,6 +114,19 @@ export const GET = async (
 
     const messages: any[] = thread.messages ?? [];
 
+    // Asynchronously mark the thread as read if it contains the UNREAD label
+    const isUnread = messages.some((m: any) => m.labelIds?.includes("UNREAD"));
+    if (isUnread) {
+      // We don't await this so it doesn't block the fast GET response
+      corsair
+        .withTenant(tenantId)
+        .gmail.api.threads.modify({
+          id: threadId,
+          removeLabelIds: ["UNREAD"],
+        })
+        .catch((e) => console.error("Failed to mark thread as read:", e));
+    }
+
     // Process each message in the thread
     const processedMessages = messages.map((msg: any) => {
       const msgHeaders: { name?: string; value?: string }[] =

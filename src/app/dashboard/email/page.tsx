@@ -326,6 +326,30 @@ export default function EmailPage() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // ── Optimistically mark as read ──────────────────────────────────────────
+  useEffect(() => {
+    if (selectedId) {
+      queryClient.setQueriesData(
+        { queryKey: ["gmail-threads"] },
+        (old: any) => {
+          if (!old) return old;
+          let changed = false;
+          const newPages = old.pages.map((page: any) => ({
+            ...page,
+            threads: page.threads.map((t: EmailThread) => {
+              if (t.id === selectedId && t.unread) {
+                changed = true;
+                return { ...t, unread: false, labelIds: t.labelIds.filter((l) => l !== "UNREAD") };
+              }
+              return t;
+            }),
+          }));
+          return changed ? { ...old, pages: newPages } : old;
+        }
+      );
+    }
+  }, [selectedId, queryClient]);
+
   // ── Star / unstar mutation ────────────────────────────────────────────────
   const starMutation = useMutation({
     mutationFn: async ({
