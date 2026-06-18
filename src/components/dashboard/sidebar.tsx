@@ -54,6 +54,9 @@ export default function Sidebar({
 
   const handleSignOut = async () => {
     try {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("orion-agent-chat");
+      }
       await authClient.signOut();
       router.push("/");
       toast.success("Signed out successfully");

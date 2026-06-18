@@ -14,6 +14,7 @@ import {
   X,
   ChevronRight,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import { OrionLogo } from "@/components/landing/orion-logo";
 import { useQuery } from "@tanstack/react-query";
@@ -43,20 +44,21 @@ type AgentMessage =
       usage?: Usage;
       error?: string;
       loading?: boolean;
+      isConversational?: boolean;
     };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const suggestions = [
-  "Send an email to friend@example.com saying hi and that I look forward to catching up",
-  "Create a meeting called 'Team Sync' tomorrow at 10 AM for 1 hour",
-  "Schedule a call with alex@example.com next Monday at 2 PM and send them an invite email",
-  "Set up a 30-min onboarding call with new@example.com on Friday at 3 PM",
-];
-
 const ACTION_META: Record<string, { icon: React.ReactNode; label: string }> = {
   send_email: { icon: <Mail className="size-3" />, label: "Send Email" },
-  create_calendar_event: { icon: <Calendar className="size-3" />, label: "Create Event" },
+  create_calendar_event: {
+    icon: <Calendar className="size-3" />,
+    label: "Create Event",
+  },
+  summarize_emails: {
+    icon: <FileText className="size-3" />,
+    label: "Summarize Emails",
+  },
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -99,14 +101,15 @@ function UsagePill({ usage }: { usage: Usage }) {
     usage.remaining === 0
       ? "text-destructive"
       : usage.remaining <= 1
-      ? "text-amber-500"
-      : "text-emerald-500";
+        ? "text-amber-500"
+        : "text-emerald-500";
 
   return (
     <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
       <Zap className={`size-3 ${color}`} />
       <span>
-        <span className={color}>{usage.remaining}</span> / {usage.limit} AI actions left today
+        <span className={color}>{usage.remaining}</span> / {usage.limit} AI
+        actions left today
       </span>
       <div className="w-16 h-1 rounded-full bg-secondary overflow-hidden">
         <div
@@ -114,8 +117,8 @@ function UsagePill({ usage }: { usage: Usage }) {
             usage.remaining === 0
               ? "bg-destructive"
               : usage.remaining <= 1
-              ? "bg-amber-500"
-              : "bg-emerald-500"
+                ? "bg-amber-500"
+                : "bg-emerald-500"
           }`}
           style={{ width: `${pct}%` }}
         />
@@ -158,11 +161,11 @@ function AgentBubble({ msg }: { msg: AgentMessage & { role: "agent" } }) {
     <div className="flex items-start gap-3">
       <OrionLogo className="size-7 shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0 space-y-3">
-        {/* Understood banner */}
+        {/* Understood banner / Response */}
         {msg.understood && (
           <div className="flex items-start gap-2 text-[13px] text-foreground leading-relaxed">
-            <Sparkles className="size-3.5 text-primary shrink-0 mt-0.5" />
-            <span>{msg.understood}</span>
+            {!msg.isConversational && <Sparkles className="size-3.5 text-primary shrink-0 mt-0.5" />}
+            <span className={msg.isConversational ? "text-sm" : ""}>{msg.understood}</span>
           </div>
         )}
 
@@ -178,7 +181,10 @@ function AgentBubble({ msg }: { msg: AgentMessage & { role: "agent" } }) {
         {msg.steps && msg.steps.length > 0 && (
           <div className="border border-border bg-card/50 rounded-xl overflow-hidden divide-y divide-border">
             {msg.steps.map((step, i) => {
-              const meta = ACTION_META[step.type] ?? { icon: null, label: step.type };
+              const meta = ACTION_META[step.type] ?? {
+                icon: null,
+                label: step.type,
+              };
               return (
                 <div key={i} className="flex items-start gap-3 px-3.5 py-2.5">
                   <StepStatusIcon status={step.status} />
@@ -201,7 +207,9 @@ function AgentBubble({ msg }: { msg: AgentMessage & { role: "agent" } }) {
                       </p>
                     )}
                     {step.error && (
-                      <p className="text-[11px] text-destructive mt-0.5">{step.error}</p>
+                      <p className="text-[11px] text-destructive mt-0.5">
+                        {step.error}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -211,7 +219,7 @@ function AgentBubble({ msg }: { msg: AgentMessage & { role: "agent" } }) {
         )}
 
         {/* Usage */}
-        {msg.usage && <UsagePill usage={msg.usage} />}
+        {msg.usage && !msg.isConversational && <UsagePill usage={msg.usage} />}
       </div>
     </div>
   );
@@ -234,8 +242,8 @@ function ConnectionBanner({
         {!gmail && !googlecalendar
           ? "Gmail and Google Calendar are not connected."
           : !gmail
-          ? "Gmail is not connected."
-          : "Google Calendar is not connected."}{" "}
+            ? "Gmail is not connected."
+            : "Google Calendar is not connected."}{" "}
         The agent can only run actions for connected services.
       </span>
       <Link
@@ -252,15 +260,37 @@ function ConnectionBanner({
 
 const GREETING: AgentMessage = {
   role: "agent",
-  understood: "Hi! I'm Orion — your AI assistant for Gmail and Google Calendar. Tell me what to do and I'll handle it.",
+  understood:
+    "Hi! I'm Orion — your AI assistant for Gmail and Google Calendar. Tell me what to do and I'll handle it.",
 };
 
 export default function AgentPage() {
   const [messages, setMessages] = useState<AgentMessage[]>([GREETING]);
+  const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load chat from session storage
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("orion-agent-chat");
+      if (saved) {
+        setMessages(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load chat history", e);
+    }
+    setLoaded(true);
+  }, []);
+
+  // Save chat to session storage
+  useEffect(() => {
+    if (loaded) {
+      sessionStorage.setItem("orion-agent-chat", JSON.stringify(messages));
+    }
+  }, [messages, loaded]);
 
   // Fetch connection status
   const { data: conn } = useQuery({
@@ -340,7 +370,12 @@ export default function AgentPage() {
       const steps: Step[] = (data.actions ?? []).map((a: any) => ({
         type: a.type,
         label: a.type,
-        status: a.status === "success" ? "done" : a.status === "skipped" ? "skipped" : "failed",
+        status:
+          a.status === "success"
+            ? "done"
+            : a.status === "skipped"
+              ? "skipped"
+              : "failed",
         summary: a.summary,
         error: a.error,
       }));
@@ -353,6 +388,7 @@ export default function AgentPage() {
           clarificationNeeded: data.clarificationNeeded,
           steps: steps.length > 0 ? steps : undefined,
           usage: data.usage,
+          isConversational: data.isConversational,
         },
       ]);
 
@@ -360,7 +396,10 @@ export default function AgentPage() {
     } catch {
       setMessages((m) => [
         ...m.slice(0, -1),
-        { role: "agent", error: "Network error. Please check your connection." },
+        {
+          role: "agent",
+          error: "Network error. Please check your connection.",
+        },
       ]);
     } finally {
       setSending(false);
@@ -371,8 +410,6 @@ export default function AgentPage() {
     setMessages([GREETING]);
     setInput("");
   }
-
-  const showSuggestions = messages.length === 1;
 
   return (
     <div className="h-full flex flex-col">
@@ -390,7 +427,12 @@ export default function AgentPage() {
       </div>
 
       {/* Connection banner */}
-      {conn && <ConnectionBanner gmail={conn.gmail} googlecalendar={conn.googlecalendar} />}
+      {conn && (
+        <ConnectionBanner
+          gmail={conn.gmail}
+          googlecalendar={conn.googlecalendar}
+        />
+      )}
 
       {/* Messages */}
       <div ref={scrollerRef} className="flex-1 overflow-auto">
@@ -404,7 +446,7 @@ export default function AgentPage() {
               </div>
             ) : (
               <AgentBubble key={i} msg={m} />
-            )
+            ),
           )}
         </div>
       </div>
@@ -412,21 +454,6 @@ export default function AgentPage() {
       {/* Input area */}
       <div className="px-4 sm:px-6 pb-4 sm:pb-6">
         <div className="max-w-2xl mx-auto">
-          {/* Suggestion chips */}
-          {showSuggestions && (
-            <div className="flex flex-wrap gap-1.5 mb-3 justify-center">
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setInput(s)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
-                >
-                  {s.length > 52 ? s.slice(0, 52) + "…" : s}
-                </button>
-              ))}
-            </div>
-          )}
-
           <form
             onSubmit={submit}
             className="flex items-end gap-2 p-2 border border-border rounded-2xl bg-card focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary transition-all"
@@ -459,8 +486,10 @@ export default function AgentPage() {
             </button>
           </form>
 
-          <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            Orion manages Gmail & Calendar · Review before approving critical actions
+          <p className="mt-3 text-center text-[11px] text-muted-foreground px-4 leading-relaxed">
+            Ask Orion to manage emails, schedule meetings, summarize your inbox, or automate work tasks.
+            <br />
+            Casual greetings don't count toward your daily AI action limit.
           </p>
         </div>
       </div>

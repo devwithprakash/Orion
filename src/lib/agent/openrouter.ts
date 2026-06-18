@@ -83,3 +83,57 @@ export async function callOpenRouter(
 
   return result.data;
 }
+
+/**
+ * Secondary AI call: takes raw email threads and generates a clean,
+ * readable summary for the user.
+ */
+export async function callOpenRouterForEmailSummary(
+  emails: { from: string; subject: string | null; snippet: string }[]
+): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is not configured");
+  }
+
+  const emailText = emails
+    .map(
+      (e, i) =>
+        `Email ${i + 1}:\nFrom: ${e.from}\nSubject: ${e.subject ?? "No Subject"}\nSnippet: ${e.snippet}\n`
+    )
+    .join("\n");
+
+  const prompt = `You are a helpful workspace assistant. Please summarize the following ${emails.length} recent emails clearly and concisely. Group related items if necessary. Do not include pleasantries, just provide the summary directly.\n\n${emailText}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "https://orion.app",
+        "X-Title": "Orion Workspace",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenRouter returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content?.trim() ?? "No summary generated.";
+  } catch (error) {
+    console.error("[callOpenRouterForEmailSummary] Error:", error);
+    return "Failed to generate summary from the emails.";
+  } finally {
+    clearTimeout(timeout);
+  }
+}

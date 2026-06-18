@@ -176,7 +176,7 @@ export function AuthShell({ mode }: { mode: "signin" | "signup" }) {
               onChange={(e) => setName(e.target.value)}
               type="text"
               error={errors.name}
-              placeholder="Ada Lovelace"
+              placeholder="John Doe"
             />
           )}
           <Field
@@ -184,7 +184,7 @@ export function AuthShell({ mode }: { mode: "signin" | "signup" }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
-            placeholder="you@corsair.dev"
+            placeholder="you@gmail.com"
             error={errors.email}
           />
           <Field

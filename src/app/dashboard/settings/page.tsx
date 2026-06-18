@@ -1,9 +1,8 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { ConnectGoogleCard } from "@/components/dashboard/connect-google-card";
-import { Settings } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AlreadyConnectedBanner } from "@/components/dashboard/already-connected-banner";
+import { SettingsIntegrationCard } from "@/components/dashboard/settings-integration-card";
 
 export default async function SettingsPage({
   searchParams,
@@ -11,62 +10,48 @@ export default async function SettingsPage({
   searchParams: Promise<{ error?: string; service?: string }>;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
-
-  if (!session) {
-    redirect("/signin");
-  }
+  if (!session) redirect("/signin");
 
   const params = await searchParams;
   const alreadyConnectedService =
     params.error === "already_connected" ? params.service : undefined;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-background text-foreground h-full overflow-y-auto">
-      <div className="max-w-4xl mx-auto w-full p-6 md:p-10 space-y-10">
+    <div className="h-full overflow-y-auto bg-background">
+      <div className="max-w-3xl mx-auto px-4 sm:px-8 py-10 space-y-10">
 
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Settings className="size-8 text-primary" />
-            Settings
-          </h1>
-          <p className="text-muted-foreground">
-            Manage your integration connections.
+        {/* Page header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your connected services and integrations.
           </p>
         </div>
 
-        {/* Already-connected error banner (client component) */}
+        {/* Error banner */}
         {alreadyConnectedService && (
           <AlreadyConnectedBanner service={alreadyConnectedService} />
         )}
 
         {/* Integrations */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <svg
-              className="size-5 text-primary"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
-              <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
-              <line x1="6" y1="6" x2="6.01" y2="6" />
-              <line x1="6" y1="18" x2="6.01" y2="18" />
-            </svg>
-            Integrations
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card border border-border rounded-xl pb-6 shadow-sm overflow-hidden flex flex-col justify-start">
-              <ConnectGoogleCard service="gmail" />
-            </div>
-            <div className="bg-card border border-border rounded-xl pb-6 shadow-sm overflow-hidden flex flex-col justify-start">
-              <ConnectGoogleCard service="googlecalendar" />
-            </div>
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 pb-1 border-b border-border">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Connected Accounts
+            </h2>
           </div>
-        </div>
+
+          <div className="space-y-3">
+            <SettingsIntegrationCard service="gmail" />
+            <SettingsIntegrationCard service="googlecalendar" />
+          </div>
+        </section>
+
+        {/* Footer note */}
+        <p className="text-[11px] text-muted-foreground text-center pb-4">
+          Orion uses read/write access to Gmail and Google Calendar to perform actions on your behalf.
+          Disconnect any service at any time.
+        </p>
       </div>
     </div>
   );

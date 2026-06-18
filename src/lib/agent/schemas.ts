@@ -22,17 +22,28 @@ export const CreateCalendarEventActionSchema = z.object({
   timeZone: z.string().optional().default("UTC"),
 });
 
+export const SummarizeEmailsActionSchema = z.object({
+  type: z.literal("summarize_emails"),
+  limit: z.number().int().min(1).max(20).default(5),
+});
+
 export const AgentActionSchema = z.discriminatedUnion("type", [
   SendEmailActionSchema,
   CreateCalendarEventActionSchema,
+  SummarizeEmailsActionSchema,
 ]);
 
 // ─── Top-Level Plan Schema ────────────────────────────────────────────────────
 
 export const AgentPlanSchema = z.object({
-  understood: z.string().min(1),  // human-readable summary of what the AI will do
-  actions: z.array(AgentActionSchema),
-  // AI sometimes returns null instead of omitting — normalise both to undefined
+  understood: z.string().min(1),
+  // actions may be omitted for informational/conversational responses — default to []
+  actions: z
+    .array(AgentActionSchema)
+    .nullable()
+    .optional()
+    .transform((v) => v ?? []),
+  // AI sometimes returns null — normalise to undefined
   clarificationNeeded: z
     .string()
     .nullable()
@@ -64,6 +75,7 @@ export const AgentRunResultSchema = z.object({
 
 export type SendEmailAction = z.infer<typeof SendEmailActionSchema>;
 export type CreateCalendarEventAction = z.infer<typeof CreateCalendarEventActionSchema>;
+export type SummarizeEmailsAction = z.infer<typeof SummarizeEmailsActionSchema>;
 export type AgentAction = z.infer<typeof AgentActionSchema>;
 export type AgentPlan = z.infer<typeof AgentPlanSchema>;
 export type ActionResult = z.infer<typeof ActionResultSchema>;

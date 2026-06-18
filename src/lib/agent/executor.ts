@@ -4,7 +4,10 @@ import {
   ActionResult,
   SendEmailAction,
   CreateCalendarEventAction,
+  SummarizeEmailsAction,
 } from "./schemas";
+import { callOpenRouterForEmailSummary } from "./openrouter";
+import { FOLDER_LABEL_MAP, parseFrom, getHeader, displayName } from "@/lib/email-utils";
 
 // ─── Email Executor ───────────────────────────────────────────────────────────
 
@@ -102,6 +105,91 @@ async function executeCreateCalendarEvent(
   }
 }
 
+// ─── Summarize Emails Executor ────────────────────────────────────────────────
+
+async function executeSummarizeEmails(
+  tenantId: string,
+  action: SummarizeEmailsAction
+): Promise<ActionResult> {
+  try {
+    // 1. Fetch raw threads
+    const rawList = await corsair
+      .withTenant(tenantId)
+      .gmail.api.threads.list({
+        maxResults: action.limit,
+        labelIds: [FOLDER_LABEL_MAP["inbox"]], // Fixed to inbox for simplicity
+      });
+
+    const threadRefs = (rawList?.threads ?? []).filter((t: any) => !!t.id);
+
+    if (threadRefs.length === 0) {
+      return {
+        type: "summarize_emails",
+        status: "success",
+        summary: "Your inbox is empty. No emails to summarize.",
+      };
+    }
+
+    // 2. Get full thread payloads
+    const settled = await Promise.allSettled(
+      threadRefs.map((t: any) =>
+        corsair.withTenant(tenantId).gmail.api.threads.get({
+          id: t.id,
+          format: "full",
+        })
+      )
+    );
+
+    // 3. Extract relevant info
+    const emailsForSummary: { from: string; subject: string | null; snippet: string }[] = [];
+
+    for (const result of settled) {
+      if (result.status === "rejected" || !result.value) continue;
+      const thread = result.value;
+      const messages: any[] = thread?.messages ?? [];
+      if (messages.length === 0) continue;
+
+      const latestMsg = messages[messages.length - 1];
+      const hdrs = latestMsg?.payload?.headers ?? messages[0]?.payload?.headers ?? [];
+      
+      const fromRaw = getHeader(hdrs, "From");
+      const { name: fromName, email: fromEmail } = parseFrom(fromRaw);
+      const subject = getHeader(hdrs, "Subject");
+      const snippet = thread.snippet ?? latestMsg?.snippet ?? "";
+
+      emailsForSummary.push({
+        from: displayName(fromName, fromEmail),
+        subject: subject || null,
+        snippet,
+      });
+    }
+
+    if (emailsForSummary.length === 0) {
+      return {
+        type: "summarize_emails",
+        status: "success",
+        summary: "I found threads, but could not extract email content from them.",
+      };
+    }
+
+    // 4. Call OpenRouter to summarize
+    const summaryText = await callOpenRouterForEmailSummary(emailsForSummary);
+
+    return {
+      type: "summarize_emails",
+      status: "success",
+      summary: summaryText,
+    };
+  } catch (error) {
+    return {
+      type: "summarize_emails",
+      status: "failed",
+      summary: `Failed to fetch and summarize your emails.`,
+      error: String(error),
+    };
+  }
+}
+
 // ─── Main Executor ────────────────────────────────────────────────────────────
 
 /**
@@ -119,6 +207,8 @@ export async function executeActions(
       results.push(await executeSendEmail(tenantId, action));
     } else if (action.type === "create_calendar_event") {
       results.push(await executeCreateCalendarEvent(tenantId, action));
+    } else if (action.type === "summarize_emails") {
+      results.push(await executeSummarizeEmails(tenantId, action));
     } else {
       results.push({
         type: (action as any).type ?? "unknown",

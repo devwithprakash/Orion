@@ -22,10 +22,6 @@ export default function Landing() {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-primary/20 blur-[120px] rounded-full" />
         </div>
         <div className="max-w-3xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft text-accent border border-primary/20 text-xs font-medium mb-8">
-            <span className="size-1.5 bg-primary rounded-full animate-pulse" />
-            Powered by Corsair Intelligence
-          </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-tight mb-6 leading-[1.05]">
             Email and calendar, <br />
             <span className="font-medium italic">finally on your side.</span>
@@ -121,20 +117,8 @@ export default function Landing() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               {
-                p: "Schedule a meeting with the design team Thursday afternoon.",
-                o: "Event created · 4 attendees invited · agenda drafted.",
-              },
-              {
-                p: "Find 30 min with Tim next week and send him the deck.",
-                o: "Free slot found Tue 2 PM · email sent with attachment.",
-              },
-              {
                 p: "Draft a reply to Sarah confirming the launch date.",
                 o: "Reply drafted in your voice · queued for review.",
-              },
-              {
-                p: "Who haven't I replied to this week?",
-                o: "5 unanswered threads surfaced · follow-ups suggested.",
               },
               {
                 p: "Move all my Friday meetings to next Monday.",

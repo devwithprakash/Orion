@@ -5,16 +5,26 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { OrionLogo } from "./orion-logo";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 
 export function Navbar() {
   const { setTheme, theme } = useTheme();
   const [open, setOpen] = useState(false);
-
   const [mounted, setMounted] = useState(false);
+  
+  const { data: session } = authClient.useSession();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleSignOut = async () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("orion-agent-chat");
+    }
+    await authClient.signOut();
+    window.location.reload();
+  };
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border glass">
@@ -23,21 +33,6 @@ export function Navbar() {
           <OrionLogo />
           <span className="font-semibold text-lg tracking-tight">Orion</span>
         </Link>
-
-        <div className="hidden md:flex items-center gap-7 text-sm font-medium text-muted-foreground">
-          <a
-            href="#features"
-            className="hover:text-foreground transition-colors"
-          >
-            Features
-          </a>
-          <a
-            href="#product"
-            className="hover:text-foreground transition-colors"
-          >
-            Product
-          </a>
-        </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <button
@@ -52,18 +47,39 @@ export function Navbar() {
                 <Moon className="size-4" />
               ))}
           </button>
-          <Link
-            href="/signin"
-            className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Login
-          </Link>
-          <Link
-            href="/signup"
-            className="hidden sm:inline-flex bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            Get Started
-          </Link>
+          
+          {session ? (
+            <>
+              <Link
+                href="/dashboard/email"
+                className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Dashboard
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="hidden sm:inline-flex bg-secondary text-secondary-foreground border border-border px-4 py-2 rounded-lg text-sm font-medium hover:bg-secondary/80 transition-colors"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/signin"
+                className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                href="/signup"
+                className="hidden sm:inline-flex bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
+
           <button
             onClick={() => setOpen(!open)}
             className="md:hidden size-9 grid place-items-center rounded-lg border border-border"
@@ -73,6 +89,7 @@ export function Navbar() {
           </button>
         </div>
       </div>
+      
       {open && (
         <div className="md:hidden border-t border-border bg-background px-5 py-4 space-y-3">
           <a
@@ -89,15 +106,32 @@ export function Navbar() {
           >
             Product
           </a>
-          <Link href="/login" className="block text-sm">
-            Login
-          </Link>
-          <Link
-            href="/signup"
-            className="block text-center bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium"
-          >
-            Get Started
-          </Link>
+          
+          {session ? (
+            <>
+              <Link href="/dashboard/email" className="block text-sm py-1">
+                Dashboard
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="block w-full text-center bg-secondary text-secondary-foreground border border-border px-4 py-2 rounded-lg text-sm font-medium"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/signin" className="block text-sm py-1">
+                Login
+              </Link>
+              <Link
+                href="/signup"
+                className="block text-center bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
       )}
     </nav>

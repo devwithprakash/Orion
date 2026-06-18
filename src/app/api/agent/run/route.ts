@@ -4,25 +4,19 @@ import { getConnectionStatus } from "@/lib/connection";
 import { callOpenRouter } from "@/lib/agent/openrouter";
 import { executeActions } from "@/lib/agent/executor";
 import { checkDailyLimit, incrementUsage, getDailyUsage, DAILY_LIMIT } from "@/lib/agent/usage";
+import { detectConversationalIntent } from "@/lib/agent/conversation";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * POST /api/agent/run
- *
- * Main entry point for the AI agent workflow.
- * Body: { prompt: string; timeZone?: string }
- */
 export const POST = async (req: NextRequest) => {
-  // ── 1. Auth guard ──────────────────────────────────────────────────────────
+  // ── 1. Auth ────────────────────────────────────────────────────────────────
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
-
   const userId = session.user.id;
 
-  // ── 2. Parse request body ──────────────────────────────────────────────────
+  // ── 2. Parse body ──────────────────────────────────────────────────────────
   let body: { prompt?: string; timeZone?: string };
   try {
     body = await req.json();
@@ -37,39 +31,46 @@ export const POST = async (req: NextRequest) => {
 
   const timeZone = body?.timeZone;
 
-  // ── 3. Daily usage limit check ─────────────────────────────────────────────
+  // ── 3. Conversational shortcut — no usage consumed ─────────────────────────
+  const conversational = detectConversationalIntent(prompt);
+  if (conversational.isConversational) {
+    return NextResponse.json({
+      understood: conversational.response,
+      actions: [],
+      isConversational: true,
+      usage: await getDailyUsage(userId),
+    });
+  }
+
+  // ── 4. Daily usage limit ───────────────────────────────────────────────────
   const limitCheck = await checkDailyLimit(userId);
   if (!limitCheck.allowed) {
     return NextResponse.json(
       {
         message: `You have reached your daily AI limit of ${DAILY_LIMIT} actions. Please try again tomorrow.`,
-        usage: {
-          used: limitCheck.used,
-          remaining: 0,
-          limit: DAILY_LIMIT,
-        },
+        usage: { used: limitCheck.used, remaining: 0, limit: DAILY_LIMIT },
       },
       { status: 429 }
     );
   }
 
-  // ── 4. Check connection status for guard ───────────────────────────────────
+  // ── 5. Connection status ───────────────────────────────────────────────────
   const connections = await getConnectionStatus(userId);
 
-  // ── 5. Call OpenRouter — get structured plan ───────────────────────────────
+  // ── 6. Call OpenRouter ─────────────────────────────────────────────────────
   let plan;
   try {
     plan = await callOpenRouter(prompt, timeZone);
   } catch (error) {
     console.error("[/api/agent/run] OpenRouter error:", error);
     return NextResponse.json(
-      { message: `AI service error: ${String(error)}` },
+      { message: "I couldn't process that request right now. Please try again in a moment." },
       { status: 502 }
     );
   }
 
-  // ── 6. Handle clarification needed ────────────────────────────────────────
-  if (plan.clarificationNeeded && plan.actions.length === 0) {
+  // ── 7. Clarification needed (no actions yet) ───────────────────────────────
+  if (plan.clarificationNeeded && (!plan.actions || plan.actions.length === 0)) {
     return NextResponse.json({
       understood: plan.understood,
       clarificationNeeded: plan.clarificationNeeded,
@@ -78,13 +79,15 @@ export const POST = async (req: NextRequest) => {
     });
   }
 
-  // ── 7. Guard per-action connection requirements ────────────────────────────
-  const guardedActions = plan.actions.map((action) => {
-    if (action.type === "send_email" && !connections.gmail) {
+  const actions = plan.actions ?? [];
+
+  // ── 8. Per-action connection guard ─────────────────────────────────────────
+  const guardedActions = actions.map((action) => {
+    if ((action.type === "send_email" || action.type === "summarize_emails") && !connections.gmail) {
       return {
-        type: "send_email",
+        type: action.type,
         status: "skipped" as const,
-        summary: "Gmail is not connected. Please connect Gmail in Settings to send emails.",
+        summary: "Your Gmail account is not connected. Go to Settings to connect it.",
         error: "Gmail not connected",
       };
     }
@@ -92,60 +95,53 @@ export const POST = async (req: NextRequest) => {
       return {
         type: "create_calendar_event",
         status: "skipped" as const,
-        summary: "Google Calendar is not connected. Please connect it in Settings.",
+        summary: "Calendar access is required for this action. Go to Settings to connect Google Calendar.",
         error: "Google Calendar not connected",
       };
     }
-    return null; // will be executed normally
+    return null;
   });
 
-  const skippedResults = guardedActions.filter(Boolean) as Array<{
-    type: string; status: "skipped"; summary: string; error: string;
-  }>;
-  const executableActions = plan.actions.filter((_, i) => guardedActions[i] === null);
+  const executableActions = actions.filter((_, i) => guardedActions[i] === null);
 
-  // ── 8. Execute actions ─────────────────────────────────────────────────────
-  const executionResults = executableActions.length > 0
-    ? await executeActions(userId, executableActions)
-    : [];
+  // ── 9. Execute ─────────────────────────────────────────────────────────────
+  const executionResults =
+    executableActions.length > 0 ? await executeActions(userId, executableActions) : [];
 
-  // Merge results preserving order
+  // Merge preserving original order
   const mergedResults = (() => {
     let execPtr = 0;
-    return plan.actions.map((_, i) => {
+    return actions.map((_, i) => {
       if (guardedActions[i] !== null) return guardedActions[i]!;
-      return executionResults[execPtr++] ?? { type: "unknown", status: "failed" as const, summary: "Execution error" };
+      return (
+        executionResults[execPtr++] ?? {
+          type: "unknown",
+          status: "failed" as const,
+          summary: "I couldn't complete that action right now. Please try again.",
+        }
+      );
     });
   })();
 
-  // ── 9. Determine overall status ────────────────────────────────────────────
+  // ── 10. Overall status ─────────────────────────────────────────────────────
   const hasSuccess = mergedResults.some((r) => r.status === "success");
   const hasFailed = mergedResults.some((r) => r.status === "failed");
-  const overallStatus = hasSuccess && !hasFailed
-    ? "success"
-    : hasSuccess && hasFailed
-    ? "partial"
-    : "failed";
+  const overallStatus = hasSuccess && !hasFailed ? "success" : hasSuccess ? "partial" : "failed";
 
-  // ── 10. Increment usage (only if at least one action was attempted) ─────────
+  // ── 11. Increment usage (only if actions were attempted) ───────────────────
   if (executableActions.length > 0) {
     await incrementUsage(userId);
   }
 
-  // ── 11. Log the run ────────────────────────────────────────────────────────
-  prisma.agentLog.create({
-    data: {
-      userId,
-      prompt,
-      plan: plan as any,
-      results: mergedResults as any,
-      status: overallStatus,
-    },
-  }).catch((e: unknown) => console.error("[/api/agent/run] Failed to write log:", e));
+  // ── 12. Log (fire-and-forget) ──────────────────────────────────────────────
+  prisma.agentLog
+    .create({
+      data: { userId, prompt, plan: plan as any, results: mergedResults as any, status: overallStatus },
+    })
+    .catch((e: unknown) => console.error("[/api/agent/run] Log error:", e));
 
-  // ── 12. Return result ──────────────────────────────────────────────────────
+  // ── 13. Return ─────────────────────────────────────────────────────────────
   const usage = await getDailyUsage(userId);
-
   return NextResponse.json({
     understood: plan.understood,
     clarificationNeeded: plan.clarificationNeeded,

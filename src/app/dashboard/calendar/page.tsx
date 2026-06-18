@@ -256,35 +256,41 @@ export default function CalendarPage() {
       {/* ── Main calendar area ─────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Toolbar */}
-        <div className="px-4 sm:px-5 py-3 border-b border-border flex items-center gap-3 flex-wrap bg-background/80 backdrop-blur-sm">
-          {/* Nav arrows + today */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => view === "month" ? setCursor(addMonths(cursor, -1)) : setCursor(addWeeks(cursor, -1))}
-              className="size-8 grid place-items-center rounded-lg hover:bg-secondary text-muted-foreground transition-colors"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <button
-              onClick={() => view === "month" ? setCursor(addMonths(cursor, 1)) : setCursor(addWeeks(cursor, 1))}
-              className="size-8 grid place-items-center rounded-lg hover:bg-secondary text-muted-foreground transition-colors"
-            >
-              <ChevronRight className="size-4" />
-            </button>
+        <div className="px-4 sm:px-5 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 bg-background/80 backdrop-blur-sm">
+          
+          {/* Top row on mobile: Arrows + Today + Title */}
+          <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => view === "month" ? setCursor(addMonths(cursor, -1)) : setCursor(addWeeks(cursor, -1))}
+                className="size-8 grid place-items-center rounded-lg border border-transparent hover:bg-secondary text-muted-foreground transition-colors"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <button
+                onClick={() => view === "month" ? setCursor(addMonths(cursor, 1)) : setCursor(addWeeks(cursor, 1))}
+                className="size-8 grid place-items-center rounded-lg border border-transparent hover:bg-secondary text-muted-foreground transition-colors"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+              <button
+                onClick={() => setCursor(new Date())}
+                className="ml-1 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors"
+              >
+                Today
+              </button>
+            </div>
+            
+            <h2 className="sm:hidden text-sm font-semibold">{headerLabel}</h2>
           </div>
 
-          <h2 className="text-sm font-semibold min-w-[160px]">{headerLabel}</h2>
+          {/* Desktop Title */}
+          <h2 className="hidden sm:block text-sm font-semibold min-w-[160px]">{headerLabel}</h2>
 
-          <button
-            onClick={() => setCursor(new Date())}
-            className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors"
-          >
-            Today
-          </button>
-
-          <div className="ml-auto flex items-center gap-2">
+          {/* Bottom row on mobile: View Toggle + Actions */}
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto sm:ml-auto">
             {/* View toggle */}
-            <div className="flex items-center rounded-lg border border-border overflow-hidden">
+            <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0">
               {(["month", "week"] as ViewMode[]).map((v) => (
                 <button
                   key={v}
@@ -300,20 +306,22 @@ export default function CalendarPage() {
               ))}
             </div>
 
-            <button
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="size-8 grid place-items-center rounded-lg border border-border hover:bg-secondary transition-colors text-muted-foreground"
-            >
-              <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="size-8 grid place-items-center rounded-lg border border-border hover:bg-secondary transition-colors text-muted-foreground"
+              >
+                <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+              </button>
 
-            <button
-              onClick={() => setCreating({ date: todayIso })}
-              className="flex items-center gap-1.5 px-3 h-8 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:shadow-glow transition-all"
-            >
-              <Plus className="size-3.5" /> New event
-            </button>
+              <button
+                onClick={() => setCreating({ date: todayIso })}
+                className="flex items-center gap-1.5 px-3 h-8 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:shadow-glow transition-all"
+              >
+                <Plus className="size-3.5" /> New event
+              </button>
+            </div>
           </div>
         </div>
 
