@@ -54,7 +54,10 @@ function getEventColor(id: string) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
+function isoDate(d: Date) { 
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 function isoDateOffset(n: number) {
   const d = new Date(); d.setDate(d.getDate() + n); return isoDate(d);
 }
