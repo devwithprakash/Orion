@@ -488,8 +488,6 @@ export default function AgentPage() {
 
           <p className="mt-3 text-center text-[11px] text-muted-foreground px-4 leading-relaxed">
             Ask Orion to manage emails, schedule meetings, summarize your inbox, or automate work tasks.
-            <br />
-            Casual greetings don't count toward your daily AI action limit.
           </p>
         </div>
       </div>
