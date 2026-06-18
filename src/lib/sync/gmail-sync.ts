@@ -3,8 +3,6 @@ import { prisma } from "@/lib/db";
 
 export type SyncStatus = "pending" | "syncing" | "synced" | "failed";
 
-// ─── Sync State Helpers ────────────────────────────────────────────────────
-
 export async function getGmailSyncState(tenantId: string) {
   return prisma.syncState.findUnique({
     where: { tenantId_service: { tenantId, service: "gmail" } },
@@ -39,20 +37,12 @@ export async function upsertGmailSyncState(
   });
 }
 
-// ─── Header Extraction Helper ──────────────────────────────────────────────
-
-/**
- * Fetches full thread details for a list of thread IDs in parallel,
- * so each thread's messages and headers get cached in corsair_entities.
- * This is what populates data.messages[0].payload.headers (From, Subject, etc.)
- */
 async function hydrateThreadDetails(
   tenantId: string,
   threadIds: string[],
 ): Promise<void> {
   if (threadIds.length === 0) return;
 
-  // Fetch all thread details in parallel — corsair auto-caches each one
   await Promise.allSettled(
     threadIds.map((id) =>
       corsair.withTenant(tenantId).gmail.api.threads.get({
@@ -64,20 +54,11 @@ async function hydrateThreadDetails(
   );
 }
 
-// ─── Cache-First Thread Fetcher ────────────────────────────────────────────
-
-/**
- * Implements the cache-first pattern:
- * 1. Try corsair.gmail.db (reads from corsair_entities)
- * 2. If empty → fetch from corsair.gmail.api (hits Google + auto-caches)
- * 3. Hydrate thread details so From/Subject headers are stored
- */
 export async function fetchAndCacheGmailThreads(
   tenantId: string,
   limit = 50,
 ): Promise<{ threads: unknown[]; source: "cache" | "api" }> {
   try {
-    // Step 1: Check local Corsair cache (corsair_entities table)
     const cached = await corsair
       .withTenant(tenantId)
       .gmail.db.threads.list({ limit });
@@ -86,7 +67,6 @@ export async function fetchAndCacheGmailThreads(
       return { threads: cached, source: "cache" };
     }
 
-    // Step 2: Cache miss — fetch thread list from Google API
     console.log(
       `[gmail-sync] Cache miss for tenant ${tenantId} — fetching from API`,
     );
@@ -99,7 +79,6 @@ export async function fetchAndCacheGmailThreads(
 
     const threads = response?.threads ?? [];
 
-    // Step 3: Hydrate each thread with full metadata (From, Subject, Date headers)
     const threadIds = threads.map((t: any) => t.id).filter(Boolean);
     await hydrateThreadDetails(tenantId, threadIds);
 
@@ -108,7 +87,6 @@ export async function fetchAndCacheGmailThreads(
       lastSyncAt: new Date(),
     });
 
-    // Return the now-hydrated threads from cache
     const hydrated = await corsair
       .withTenant(tenantId)
       .gmail.db.threads.list({ limit });
@@ -130,20 +108,12 @@ export async function fetchAndCacheGmailThreads(
   }
 }
 
-// ─── Initial Full Sync ─────────────────────────────────────────────────────
-
-/**
- * Called once right after a user connects Gmail via OAuth.
- * Fetches threads then hydrates each with metadata headers (From, Subject, Date)
- * so the cache contains enough data to render the email list without extra calls.
- */
 export async function triggerInitialGmailSync(tenantId: string): Promise<void> {
   console.log(`[gmail-sync] Starting initial sync for tenant ${tenantId}`);
 
   await upsertGmailSyncState(tenantId, { status: "syncing" });
 
   try {
-    // Step 1: Fetch thread list
     const response = await corsair
       .withTenant(tenantId)
       .gmail.api.threads.list({ maxResults: 50 });
@@ -152,8 +122,6 @@ export async function triggerInitialGmailSync(tenantId: string): Promise<void> {
 
     console.log(`[gmail-sync] Initial sync fetched ${threads.length} threads`);
 
-    // Step 2: Hydrate each thread with metadata headers (From, Subject, Date)
-    // This stores messages[0].payload.headers in corsair_entities per thread
     const threadIds = threads.map((t: any) => t.id).filter(Boolean);
     await hydrateThreadDetails(tenantId, threadIds);
 
@@ -178,17 +146,9 @@ export async function triggerInitialGmailSync(tenantId: string): Promise<void> {
       status: "failed",
       errorMessage: error instanceof Error ? error.message : String(error),
     });
-
-    // Don't rethrow — initial sync failure should not block the OAuth redirect
   }
 }
 
-// ─── Incremental Sync ──────────────────────────────────────────────────────
-
-/**
- * Delta sync using lastSyncAt as the cursor. Queries messages received after
- * the last sync, then hydrates any new threads with full metadata headers.
- */
 export async function triggerIncrementalGmailSync(
   tenantId: string,
 ): Promise<void> {
@@ -208,7 +168,6 @@ export async function triggerIncrementalGmailSync(
   await upsertGmailSyncState(tenantId, { status: "syncing" });
 
   try {
-    // Gmail search operator: after:<unix epoch seconds>
     const afterEpoch = Math.floor(state.lastSyncAt.getTime() / 1000);
 
     const newMessages = await corsair
@@ -225,12 +184,9 @@ export async function triggerIncrementalGmailSync(
     );
 
     if (messages.length > 0) {
-      // Refresh thread list
       const response = await corsair
         .withTenant(tenantId)
         .gmail.api.threads.list({ maxResults: 50 });
-
-      // Hydrate new/updated threads with headers
       const threadIds = (response?.threads ?? [])
         .map((t: any) => t.id)
         .filter(Boolean);
@@ -251,13 +207,3 @@ export async function triggerIncrementalGmailSync(
     });
   }
 }
-
-// ─── Gmail Watch ───────────────────────────────────────────────────────────
-
-/**
- * Push notifications (users.watch) are not available — the corsair Gmail
- * binding only exposes: messages, labels, drafts, threads.
- *
- * Use triggerIncrementalGmailSync on a cron schedule (e.g. every 5 minutes)
- * as the supported alternative for near-real-time updates.
- */

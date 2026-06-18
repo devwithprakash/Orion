@@ -1,8 +1,4 @@
-/**
- * Lightweight conversational intent detector.
- * Returns true for simple greetings/questions that don't need AI action.
- * These are handled with a canned response — no OpenRouter call, no usage increment.
- */
+
 
 const CONVERSATIONAL_PATTERNS = [
   /^(hi|hello|hey|sup|yo|hiya|howdy)[.!?]*$/i,
@@ -47,7 +43,6 @@ export type ConversationalMatch = {
 export function detectConversationalIntent(prompt: string): ConversationalMatch {
   const trimmed = prompt.trim().toLowerCase();
 
-  // Is it too long to be a greeting? (more than 12 words → treat as task)
   const wordCount = trimmed.split(/\s+/).length;
   if (wordCount > 12) return { isConversational: false };
 

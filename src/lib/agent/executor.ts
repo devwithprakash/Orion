@@ -9,7 +9,6 @@ import {
 import { callOpenRouterForEmailSummary } from "./openrouter";
 import { FOLDER_LABEL_MAP, parseFrom, getHeader, displayName } from "@/lib/email-utils";
 
-// ─── Email Executor ───────────────────────────────────────────────────────────
 
 async function executeSendEmail(
   tenantId: string,
@@ -53,14 +52,13 @@ async function executeSendEmail(
   }
 }
 
-// ─── Calendar Executor ────────────────────────────────────────────────────────
 
 async function executeCreateCalendarEvent(
   tenantId: string,
   action: CreateCalendarEventAction
 ): Promise<ActionResult> {
   try {
-    // Default end time = start + 1 hour
+
     const computeEndTime = (startTime: string): string => {
       const [h, m] = startTime.split(":").map(Number);
       const endH = (h + 1) % 24;
@@ -105,14 +103,13 @@ async function executeCreateCalendarEvent(
   }
 }
 
-// ─── Summarize Emails Executor ────────────────────────────────────────────────
 
 async function executeSummarizeEmails(
   tenantId: string,
   action: SummarizeEmailsAction
 ): Promise<ActionResult> {
   try {
-    // 1. Fetch raw threads
+
     const rawList = await corsair
       .withTenant(tenantId)
       .gmail.api.threads.list({
@@ -130,7 +127,6 @@ async function executeSummarizeEmails(
       };
     }
 
-    // 2. Get full thread payloads
     const settled = await Promise.allSettled(
       threadRefs.map((t: any) =>
         corsair.withTenant(tenantId).gmail.api.threads.get({
@@ -140,7 +136,7 @@ async function executeSummarizeEmails(
       )
     );
 
-    // 3. Extract relevant info
+
     const emailsForSummary: { from: string; subject: string | null; snippet: string }[] = [];
 
     for (const result of settled) {
@@ -172,7 +168,6 @@ async function executeSummarizeEmails(
       };
     }
 
-    // 4. Call OpenRouter to summarize
     const summaryText = await callOpenRouterForEmailSummary(emailsForSummary);
 
     return {
@@ -190,12 +185,6 @@ async function executeSummarizeEmails(
   }
 }
 
-// ─── Main Executor ────────────────────────────────────────────────────────────
-
-/**
- * Execute all actions from an AgentPlan sequentially.
- * Returns per-action results regardless of individual failures.
- */
 export async function executeActions(
   tenantId: string,
   actions: AgentAction[]

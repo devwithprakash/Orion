@@ -1,10 +1,4 @@
-/**
- * Builds the system prompt for the Orion AI agent.
- * Key design goals:
- * - AI returns ONLY clean user-facing summaries (never chain-of-thought)
- * - Structured JSON with no null values
- * - Handles both action tasks AND informational queries
- */
+
 export function buildSystemPrompt(todayUtc: string, userTimeZone?: string): string {
   const dayName = new Date(todayUtc).toLocaleDateString("en-US", {
     weekday: "long",

@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// ─── Individual Action Schemas ────────────────────────────────────────────────
 
 export const SendEmailActionSchema = z.object({
   type: z.literal("send_email"),
@@ -33,17 +32,14 @@ export const AgentActionSchema = z.discriminatedUnion("type", [
   SummarizeEmailsActionSchema,
 ]);
 
-// ─── Top-Level Plan Schema ────────────────────────────────────────────────────
 
 export const AgentPlanSchema = z.object({
   understood: z.string().min(1),
-  // actions may be omitted for informational/conversational responses — default to []
   actions: z
     .array(AgentActionSchema)
     .nullable()
     .optional()
     .transform((v) => v ?? []),
-  // AI sometimes returns null — normalise to undefined
   clarificationNeeded: z
     .string()
     .nullable()
@@ -51,7 +47,6 @@ export const AgentPlanSchema = z.object({
     .transform((v) => v ?? undefined),
 });
 
-// ─── Execution Result Schemas ─────────────────────────────────────────────────
 
 export const ActionResultSchema = z.object({
   type: z.string(),
@@ -71,7 +66,6 @@ export const AgentRunResultSchema = z.object({
   }),
 });
 
-// ─── TypeScript Types ─────────────────────────────────────────────────────────
 
 export type SendEmailAction = z.infer<typeof SendEmailActionSchema>;
 export type CreateCalendarEventAction = z.infer<typeof CreateCalendarEventActionSchema>;
