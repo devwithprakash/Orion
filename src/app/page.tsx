@@ -68,7 +68,7 @@ export default function Landing() {
                 </div>
                 <div className="bg-secondary px-3.5 py-2.5 rounded-2xl rounded-tl-sm text-sm leading-relaxed min-w-0">
                   Schedule 30 min with{" "}
-                  <span className="text-primary">friend@corsair.dev</span>{" "}
+                  <span className="text-primary">friend@orion.dev</span>{" "}
                   Thursday and send him a heads-up.
                 </div>
               </div>

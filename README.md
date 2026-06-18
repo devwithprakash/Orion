@@ -1,5 +1,7 @@
 # Orion – AI-Powered Email & Calendar Workspace
 
+**Live Demo**: https://orion.prakashjangid.in
+
 ## 1. Project Name & Description
 
 **Orion** is a unified email and calendar workspace that intelligently aggregates your Gmail and Google Calendar data into a single, intuitive interface. Powered by an AI agent.
@@ -152,7 +154,15 @@ Before getting started, ensure you have:
 - **Prisma Studio**: For database inspection (`pnpm db:studio`)
 - **Postman/Insomnia**: For API testing
 
-## 6. Environment Variables
+## 6. Live Demo
+
+A live demo of Orion is available at:
+
+- https://orion.example.com
+
+> Replace this URL with your deployed production or staging link.
+
+## 7. Environment Variables
 
 Create a `.env.local` file in the root directory with the following variables:
 
