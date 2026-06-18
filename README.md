@@ -621,16 +621,3 @@ GET    /api/version                # API version
 - ✗ API rate limiting per user (global limits only)
 - ✗ Bulk operations (delete, archive 100+ emails at once)
 
-### Performance Notes
-- First page load ~2-3 seconds (improved with cache-first architecture)
-- Large email threads (1000+ messages) may be slow to render
-- Real-time sync latency: 30-60 seconds (Pub/Sub propagation)
-- Database queries optimized but not indexed for complex searches
-
-### Browser Support
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
-
-**Mobile**: Responsive design supported; native mobile apps not available.
