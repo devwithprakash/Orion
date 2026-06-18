@@ -25,37 +25,6 @@ export default async function SettingsPage() {
           </p>
         </div>
 
-        {/* User Information */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <User className="size-5 text-primary" />
-            Account Information
-          </h2>
-          <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Name</label>
-                <p className="mt-1 text-base font-medium">{session.user.name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Email</label>
-                <p className="mt-1 text-base font-medium">{session.user.email}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">User ID</label>
-                <p className="mt-1 text-xs font-mono text-muted-foreground truncate">{session.user.id}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Status</label>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <Shield className="size-4 text-emerald-500" />
-                  <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Verified</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Integrations */}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold flex items-center gap-2">

@@ -3,39 +3,11 @@
 import {
   Mail,
   Calendar as CalendarIcon,
-  CheckCircle2,
-  AlertCircle,
-  RefreshCw,
   LogOut,
-  Loader2,
   Wifi,
-  WifiOff,
-  Clock,
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
-type SyncState = {
-  status: "not_started" | "pending" | "syncing" | "synced" | "failed";
-  lastSyncAt: string | null;
-  errorMessage: string | null;
-  retryCount: number;
-};
-
-function useSyncState(service: "gmail" | "googlecalendar") {
-  return useQuery({
-    queryKey: ["sync-state", service],
-    queryFn: async () => {
-      const endpoint = service === "gmail" ? "/api/sync/gmail" : "/api/sync/calendar";
-      const res = await fetch(endpoint);
-      if (!res.ok) throw new Error("Failed to fetch sync state");
-      return res.json() as Promise<SyncState>;
-    },
-    staleTime: 1000 * 30,
-    refetchInterval: 10000,
-  });
-}
 
 export function ConnectGoogleCard({
   service,
@@ -47,7 +19,6 @@ export function ConnectGoogleCard({
   const queryClient = useQueryClient();
   const isGmail = service === "gmail";
 
-  const { data: syncState, isLoading: syncLoading } = useSyncState(service);
   const { data: conn } = useQuery({
     queryKey: ["connection-status"],
     queryFn: async () => {
@@ -59,25 +30,6 @@ export function ConnectGoogleCard({
   });
 
   const isConnected = conn?.[service] && !forceNotConnected;
-
-  const syncMutation = useMutation({
-    mutationFn: async () => {
-      const endpoint = isGmail ? "/api/sync/gmail" : "/api/sync/calendar";
-      const res = await fetch(endpoint, { method: "POST" });
-      if (!res.ok) throw new Error("Sync failed");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast.success(`${isGmail ? "Gmail" : "Calendar"} sync started`);
-      queryClient.invalidateQueries({ queryKey: ["sync-state", service] });
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: [isGmail ? "gmail-threads" : "calendar-events"],
-        });
-      }, 3000);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const handleConnect = () => {
     window.location.href = `/api/corsair/connect?plugin=${service}`;
@@ -92,12 +44,6 @@ export function ConnectGoogleCard({
 
   // ── Connected state ───────────────────────────────────────────────────────
   if (isConnected) {
-    const isSyncing =
-      syncState?.status === "syncing" || syncMutation.isPending;
-    const hasFailed = syncState?.status === "failed";
-    const lastSync = syncState?.lastSyncAt
-      ? formatDistanceToNow(new Date(syncState.lastSyncAt), { addSuffix: true })
-      : null;
 
     return (
       <div className="h-full flex items-start justify-center pt-12 px-4">
@@ -121,73 +67,7 @@ export function ConnectGoogleCard({
               </div>
             </div>
 
-            {/* Sync status */}
-            <div className="px-5 py-4 space-y-3">
-              {/* Status row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {isSyncing ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin text-primary" />
-                      <span>Syncing…</span>
-                    </>
-                  ) : hasFailed ? (
-                    <>
-                      <AlertCircle className="size-3.5 text-destructive" />
-                      <span className="text-destructive">Sync failed</span>
-                    </>
-                  ) : syncState?.status === "synced" ? (
-                    <>
-                      <CheckCircle2 className="size-3.5 text-emerald-500" />
-                      <span>Up to date</span>
-                    </>
-                  ) : (
-                    <>
-                      <WifiOff className="size-3.5 text-muted-foreground" />
-                      <span>Not synced yet</span>
-                    </>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => syncMutation.mutate()}
-                  disabled={isSyncing}
-                  className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw
-                    className={`size-3 ${isSyncing ? "animate-spin" : ""}`}
-                  />
-                  Sync now
-                </button>
-              </div>
-
-              {/* Last sync */}
-              {lastSync && (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Clock className="size-3" />
-                  Last synced {lastSync}
-                </div>
-              )}
-
-              {/* Error message */}
-              {hasFailed && syncState?.errorMessage && (
-                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <p className="text-xs text-destructive">
-                    {syncState.errorMessage}
-                  </p>
-                </div>
-              )}
-
-              {/* Retry count warning */}
-              {(syncState?.retryCount ?? 0) >= 3 && (
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
-                    Multiple sync failures detected. Try reconnecting your
-                    account.
-                  </p>
-                </div>
-              )}
-            </div>
+            {/* Sync status removed as requested */}
 
             {/* Actions */}
             <div className="px-5 pb-5 flex items-center gap-2">
