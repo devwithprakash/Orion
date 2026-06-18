@@ -86,6 +86,25 @@ export async function disconnectConnection(
 
   if (!accountToDelete) return false;
 
+  // 1. Delete associated Corsair Entities (cache)
+  await prisma.corsairEntity.deleteMany({
+    where: { accountId: accountToDelete.id },
+  });
+
+  // 2. Delete associated Corsair Events (webhooks)
+  await prisma.corsairEvent.deleteMany({
+    where: { accountId: accountToDelete.id },
+  });
+
+  // 3. Delete our custom SyncState
+  await prisma.syncState.deleteMany({
+    where: {
+      tenantId,
+      service,
+    },
+  });
+
+  // 4. Finally, delete the Corsair Account
   await prisma.corsairAccount.delete({
     where: { id: accountToDelete.id },
   });
