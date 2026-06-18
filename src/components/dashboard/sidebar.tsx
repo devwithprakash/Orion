@@ -128,10 +128,10 @@ export default function Sidebar({
       {/* Bottom section */}
       <div className="p-3 border-t border-sidebar-border space-y-0.5">
         {/* Settings link */}
-        <button className="w-full flex items-center gap-3 px-3 h-9 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40 transition-colors">
+        <Link href={"/dashboard/settings"} className="w-full flex items-center gap-3 px-3 h-9 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40 transition-colors">
           <Settings className="size-4" />
           Settings
-        </button>
+        </Link>
 
         {/* Theme toggle */}
         <button
