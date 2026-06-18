@@ -63,3 +63,32 @@ export async function resolveTenantFromEmail(
 
   return null;
 }
+
+/**
+ * Disconnect a service by deleting its Corsair account.
+ */
+export async function disconnectConnection(
+  tenantId: string,
+  service: ServiceType
+): Promise<boolean> {
+  const accounts = await prisma.corsairAccount.findMany({
+    where: { tenantId },
+    include: { integration: true },
+  });
+
+  const accountToDelete = accounts.find((a) =>
+    service === "gmail"
+      ? a.integration.name.toLowerCase().includes("gmail") ||
+        a.integrationId.toLowerCase().includes("gmail")
+      : a.integration.name.toLowerCase().includes("calendar") ||
+        a.integrationId.toLowerCase().includes("calendar")
+  );
+
+  if (!accountToDelete) return false;
+
+  await prisma.corsairAccount.delete({
+    where: { id: accountToDelete.id },
+  });
+
+  return true;
+}

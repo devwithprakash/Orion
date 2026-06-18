@@ -198,6 +198,26 @@ export function ConnectGoogleCard({
                 <Wifi className="size-3.5" />
                 Reconnect
               </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/connection/disconnect", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ service }),
+                    });
+                    if (!res.ok) throw new Error("Failed to disconnect");
+                    toast.success(`${serviceName} disconnected successfully`);
+                    queryClient.invalidateQueries({ queryKey: ["connection-status"] });
+                  } catch (e: any) {
+                    toast.error(e.message);
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg border border-destructive/20 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="size-3.5" />
+                Disconnect
+              </button>
             </div>
           </div>
         </div>
