@@ -2,9 +2,6 @@
 
 **Live Demo**: https://orion.prakashjangid.in
 
-**Demo Credentials**:
-- **Email**: captainlevi964@gmail.com
-- **Password**: Demo@1234
 
 ## 1. Project Name & Description
 
